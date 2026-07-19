@@ -1210,10 +1210,14 @@ body {
   z-index: -1;
 }
 
-.game-pawn.pawn-p0 { top: 6px; left: 6px; transform: rotate(-5deg); }
-.game-pawn.pawn-p1 { top: 6px; right: 6px; transform: rotate(5deg); }
-.game-pawn.pawn-p2 { bottom: 6px; left: 6px; transform: rotate(3deg); }
-.game-pawn.pawn-p3 { bottom: 6px; right: 6px; transform: rotate(-3deg); }
+.game-pawn.pawn-p0 { top: 4px; left: 4px; }
+.game-pawn.pawn-p1 { top: 4px; right: 4px; }
+.game-pawn.pawn-p2 { bottom: 4px; left: 4px; }
+.game-pawn.pawn-p3 { bottom: 4px; right: 4px; }
+.game-pawn.pawn-p4 { top: 14px; left: 14px; }
+.game-pawn.pawn-p5 { top: 14px; right: 14px; }
+.game-pawn.pawn-p6 { bottom: 14px; left: 14px; }
+.game-pawn.pawn-p7 { bottom: 14px; right: 14px; }
 
 /* BOARD CENTER AREA */
 .board-center-area {

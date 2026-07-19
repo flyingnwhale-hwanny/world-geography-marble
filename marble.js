@@ -522,15 +522,15 @@ const MarbleGameModule = {
     const container = document.getElementById("local-player-inputs");
     container.innerHTML = "";
     
-    const defaultNames = ["대장비행사", "기차여행가", "크루즈선장", "자동차봇"];
-    const pawns = ["✈️", "🚢", "🚂", "🚗"];
+    const defaultNames = ["대장비행사", "기차여행가", "크루즈선장", "자동차봇", "헬기조종사", "자전거레이서", "로켓탐험가", "UFO조사관"];
+    const pawns = ["✈️", "🚢", "🚂", "🚗", "🚁", "🚲", "🚀", "🛸"];
     
     for (let i = 0; i < count; i++) {
       const row = document.createElement("div");
       row.className = "player-setup-row";
       row.innerHTML = `
-        <input type="text" id="p-name-${i}" value="${defaultNames[i]}" placeholder="대원 닉네임" style="flex:1.5;">
-        <button class="pawn-select-btn" id="btn-pawn-select-${i}" data-pawn-idx="${i % 4}">${pawns[i % 4]}</button>
+        <input type="text" id="p-name-${i}" value="${defaultNames[i] || '대원 ' + (i+1)}" placeholder="대원 닉네임" style="flex:1.5;">
+        <button class="pawn-select-btn" id="btn-pawn-select-${i}" data-pawn-idx="${i % 8}">${pawns[i % 8]}</button>
         <select id="p-type-${i}">
           <option value="human" ${i < count - 1 ? "selected" : ""}>👨 사람</option>
           <option value="bot" ${i === count - 1 ? "selected" : ""}>🤖 AI 로봇</option>
@@ -607,7 +607,7 @@ const MarbleGameModule = {
     this.tileOwners = {};
     this.doubleStreak = 0;
     
-    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff"];
+    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff", "#10b981", "#f97316", "#ec4899", "#a855f7"];
     
     for (let i = 0; i < count; i++) {
       const name = document.getElementById(`p-name-${i}`).value.trim() || `대원 ${i+1}`;
@@ -618,7 +618,7 @@ const MarbleGameModule = {
       this.players.push({
         id: i,
         name: name,
-        color: colors[i],
+        color: colors[i % 8],
         avatar: avatar,
         isHuman: type === "human",
         money: 1000,
