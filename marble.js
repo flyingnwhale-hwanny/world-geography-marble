@@ -346,6 +346,9 @@ const MarbleGameModule = {
     const onlineChoiceGrid = document.getElementById("setup-online-panel") ? document.getElementById("setup-online-panel").querySelector(".online-choice-grid") : null;
     if (onlineChoiceGrid) onlineChoiceGrid.style.display = "grid";
     
+    // Restore host settings visibility on reset
+    this.toggleLobbySettingsVisibility(true);
+    
     const pCountSelect = document.getElementById("local-player-count");
     if (pCountSelect) {
       this.renderLocalInputs(parseInt(pCountSelect.value));
@@ -1873,6 +1876,18 @@ const MarbleGameModule = {
     document.getElementById("modal-gameover").style.display = "flex";
   },
 
+  toggleLobbySettingsVisibility(isHost) {
+    const createSub = document.getElementById("online-create-sub");
+    if (!createSub) return;
+    
+    // Select host-only config elements (names input, settings grid, generate status)
+    const hostConfigs = createSub.querySelectorAll(".form-group, .setup-grid-form, .room-creation-status");
+    hostConfigs.forEach(el => {
+      // Keep the room-link-box hidden/shown separately, but hide/show the config elements
+      el.style.display = isHost ? "" : "none";
+    });
+  },
+
   // 2.12. P2P network sync helpers
   initHostPeer() {
     const nickname = document.getElementById("online-host-name").value.trim();
@@ -1935,6 +1950,18 @@ const MarbleGameModule = {
 
       conn.on("open", () => {
         this.logFeed(`🔌 대기실 연결 성공.`, "system");
+        
+        // Hide join setup UI, show lobby slot waiting layout
+        const createSub = document.getElementById("online-create-sub");
+        if (createSub) createSub.style.display = "block";
+        const joinSub = document.getElementById("online-join-sub");
+        if (joinSub) joinSub.style.display = "none";
+        
+        const panel = document.getElementById("setup-online-panel");
+        const choiceGrid = panel ? panel.querySelector(".online-choice-grid") : null;
+        if (choiceGrid) choiceGrid.style.display = "none";
+        
+        this.toggleLobbySettingsVisibility(false);
         
         // Auto-submit if the user filled their details beforehand
         if (this.pendingJoinData) {
