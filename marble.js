@@ -353,6 +353,8 @@ const MarbleGameModule = {
     this.gameMode = "local";
     this.localPlayerIdx = 0;
     this.pendingJoinData = null;
+    this.isGroupMode = false;
+    this.groupNames = [];
     
     const pCountSelect = document.getElementById("local-player-count");
     if (pCountSelect) {
@@ -395,6 +397,16 @@ const MarbleGameModule = {
         this.rollDiceAction();
       }
     });
+
+    // Toggle Group names input visibility based on Game Mode selection
+    const gameModeSelect = document.getElementById("online-game-mode");
+    if (gameModeSelect) {
+      gameModeSelect.addEventListener("change", () => {
+        const isGroup = gameModeSelect.value === "group";
+        const groupGroup = document.getElementById("online-group-names-group");
+        if (groupGroup) groupGroup.style.display = isGroup ? "block" : "none";
+      });
+    }
 
     // P2P Panel Choices
     document.getElementById("btn-choice-create").addEventListener("click", () => {
@@ -1118,6 +1130,9 @@ const MarbleGameModule = {
     if (tile.type === "country") {
       const ownerIdx = this.tileOwners[tileIdx];
       
+      this.pendingTileDecisionIdx = tileIdx;
+      this.pendingQuizDecision = false;
+      
       if (ownerIdx === undefined) {
         this.triggerPurchaseChoice(tileIdx);
       } else if (ownerIdx === activePlayer.id) {
@@ -1210,8 +1225,6 @@ const MarbleGameModule = {
     buyBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playCorrect();
-      activePlayer.money -= tile.price;
-      this.tileOwners[tileIdx] = activePlayer.id;
       
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
@@ -1219,7 +1232,11 @@ const MarbleGameModule = {
           tileIdx: tileIdx,
           playerIdx: activePlayer.id
         });
+        return;
       }
+      
+      activePlayer.money -= tile.price;
+      this.tileOwners[tileIdx] = activePlayer.id;
       
       const stamp = document.getElementById(`owner-stamp-${tileIdx}`);
       if (stamp) {
@@ -1241,12 +1258,20 @@ const MarbleGameModule = {
     quizBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
+      
+      const qIdx = Math.floor(Math.random() * countryData.quizzes.length);
+      
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
           type: "SYNC_QUIZ_START",
-          tileIdx: tileIdx
+          tileIdx: tileIdx,
+          qIdx: qIdx,
+          isUpgrade: false,
+          nextLvl: 0
         });
+        return;
       }
+      this.activeQuizUpgrade = null;
       this.triggerQuizChallenge(tileIdx);
     };
 
@@ -1254,13 +1279,16 @@ const MarbleGameModule = {
     cancelBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
-      this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
+      
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
           type: "SYNC_CANCEL",
           tileIdx: tileIdx
         });
+        return;
       }
+      
+      this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
       setTimeout(() => this.passTurn(), 1200);
     };
 
@@ -1358,11 +1386,6 @@ const MarbleGameModule = {
     buyBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playCorrect();
-      activePlayer.money -= upgradeCost;
-      tile.buildLevel = nextLvl;
-      
-      const tollScale = [1, 2, 4.5, 8];
-      const nextToll = Math.round(tile.toll * tollScale[nextLvl]);
       
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
@@ -1372,7 +1395,14 @@ const MarbleGameModule = {
           nextLvl: nextLvl,
           cost: upgradeCost
         });
+        return;
       }
+      
+      activePlayer.money -= upgradeCost;
+      tile.buildLevel = nextLvl;
+      
+      const tollScale = [1, 2, 4.5, 8];
+      const nextToll = Math.round(tile.toll * tollScale[nextLvl]);
       
       this.logFeed(`🏢 ${activePlayer.name} 대원이 [${tile.name}]에 [${levelsKo[nextLvl]}]을(를) 증축했습니다! (비용: ${upgradeCost}M, 새 통행료: ${nextToll}M)`, "system");
       this.renderDynamicBoardTiles();
@@ -1383,32 +1413,40 @@ const MarbleGameModule = {
     quizBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
-      this.activeQuizUpgrade = {
-        tileIdx: tileIdx,
-        nextLvl: nextLvl
-      };
+      
+      const qIdx = Math.floor(Math.random() * countryData.quizzes.length);
       
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
           type: "SYNC_QUIZ_START",
-          tileIdx: tileIdx
+          tileIdx: tileIdx,
+          qIdx: qIdx,
+          isUpgrade: true,
+          nextLvl: nextLvl
         });
+        return;
       }
       
+      this.activeQuizUpgrade = {
+        tileIdx: tileIdx,
+        nextLvl: nextLvl
+      };
       this.triggerQuizChallenge(tileIdx);
     };
 
     cancelBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
-      this.logFeed(`🚶 ${activePlayer.name} 대원이 [${tile.name}]의 증축을 보류했습니다.`, "normal");
       
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
           type: "SYNC_CANCEL",
           tileIdx: tileIdx
         });
+        return;
       }
+      
+      this.logFeed(`🚶 ${activePlayer.name} 대원이 [${tile.name}]의 증축을 보류했습니다.`, "normal");
       setTimeout(() => this.passTurn(), 1200);
     };
 
@@ -1638,7 +1676,7 @@ const MarbleGameModule = {
     const isCorrect = choiceIdx === quiz.ans;
     
     // Broadcast quiz result to remote players
-    if (this.gameMode === "online" && this.isLocalTurn()) {
+    if (this.gameMode === "online") {
       this.sendNetworkMessage({
         type: "SYNC_QUIZ_RESULT",
         tileIdx: this.activeQuiz.tileIdx,
@@ -1646,6 +1684,7 @@ const MarbleGameModule = {
         isUpgrade: !!this.activeQuizUpgrade,
         nextLvl: this.activeQuizUpgrade ? this.activeQuizUpgrade.nextLvl : 0
       });
+      return;
     }
     
     if (isCorrect) {
@@ -1752,9 +1791,6 @@ const MarbleGameModule = {
       modal.style.display = "none";
       payBtn.removeEventListener("click", resolvePayment);
       
-      visitor.money -= actualToll;
-      owner.money += actualToll;
-      
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
           type: "SYNC_TOLL",
@@ -1762,7 +1798,11 @@ const MarbleGameModule = {
           visitorId: visitor.id,
           ownerId: owner.id
         });
+        return;
       }
+      
+      visitor.money -= actualToll;
+      owner.money += actualToll;
       
       this.logFeed(`💸 ${visitor.name} 대원이 ${owner.name} 대원의 영토에 입국하여 통행료 ${actualToll}M을 납부했습니다.`, "system");
       
@@ -2089,6 +2129,16 @@ const MarbleGameModule = {
       return;
     }
     
+    // Read game modes and group names from DOM before creating room!
+    const gameModeSelect = document.getElementById("online-game-mode");
+    this.isGroupMode = gameModeSelect && gameModeSelect.value === "group";
+    if (this.isGroupMode) {
+      const groupNamesInput = document.getElementById("online-group-names-input");
+      this.groupNames = groupNamesInput ? groupNamesInput.value.split(",").map(s => s.trim()).filter(Boolean) : ["지구 모둠", "우주 모둠"];
+    } else {
+      this.groupNames = [];
+    }
+    
     this.logFeed("📡 PeerJS 서버에 접속 중...", "system");
     const rId = "geo-" + Math.random().toString(36).substr(2, 6);
     this.peer = new Peer(rId, { debug: 1 });
@@ -2164,25 +2214,8 @@ const MarbleGameModule = {
         
         this.toggleLobbySettingsVisibility(false);
         
-        // Auto-submit if the user filled their details beforehand
-        if (this.pendingJoinData) {
-          this.conn.send({
-            type: "JOIN_SUBMIT",
-            nickname: this.pendingJoinData.nickname,
-            teamIdx: this.pendingJoinData.teamIdx
-          });
-          this.logFeed(`📡 탑승 신청 전송: ${this.pendingJoinData.nickname} (좌석 ${this.pendingJoinData.teamIdx + 1})`, "system");
-          this.pendingJoinData = null;
-          
-          const btn = document.getElementById("btn-submit-join");
-          if (btn) {
-            btn.disabled = false;
-            btn.innerText = "탐험대 탑승";
-          }
-          document.getElementById("modal-online-join").style.display = "none";
-        } else {
-          document.getElementById("modal-online-join").style.display = "flex";
-        }
+        // Query lobby info to populate team/slot details dynamically
+        this.conn.send({ type: "QUERY_LOBBY" });
       });
 
       conn.on("data", (data) => this.handleClientNetworkData(data));
@@ -2223,13 +2256,48 @@ const MarbleGameModule = {
 
   handleHostNetworkData(conn, data) {
     if (data.type && data.type.startsWith("SYNC_")) {
+      // 1. Double roll protection
+      if (data.type === "SYNC_ROLL") {
+        if (this.isRolling) return;
+      }
+      
+      // 2. Decision lock protection (first click wins)
+      if (data.type === "SYNC_BUY" || data.type === "SYNC_CANCEL" || data.type === "SYNC_UPGRADE" || data.type === "SYNC_QUIZ_START") {
+        if (this.pendingTileDecisionIdx !== data.tileIdx) {
+          return; // Ignore duplicate clicks from other group members
+        }
+        this.pendingTileDecisionIdx = null; // Lock!
+        if (data.type === "SYNC_QUIZ_START") {
+          this.pendingQuizDecision = true;
+        }
+      }
+      
+      // 3. Quiz answer lock protection (first click wins)
+      if (data.type === "SYNC_QUIZ_RESULT") {
+        if (!this.pendingQuizDecision) {
+          return; // Ignore late answers
+        }
+        this.pendingQuizDecision = false; // Lock!
+      }
+      
       this.broadcastToClients(data);
       this.handleSyncMessage(data);
       return;
     }
+    
+    if (data.type === "QUERY_LOBBY") {
+      conn.send({
+        type: "LOBBY_INFO",
+        isGroupMode: this.isGroupMode || false,
+        groupNames: this.groupNames || [],
+        connectedClients: this.connectedClientsList
+      });
+      return;
+    }
+    
     if (data.type === "JOIN_SUBMIT") {
       const activeCount = this.connectedClientsList.length;
-      if (activeCount >= 4) {
+      if (!this.isGroupMode && activeCount >= 4) {
         conn.send({ type: "REJECT", reason: "정원 초과(4명)" });
         return;
       }
@@ -2240,14 +2308,16 @@ const MarbleGameModule = {
       this.connectedClientsList.push({
         peerId: conn.peer,
         nickname: data.nickname,
-        slotIdx: data.teamIdx || activeCount,
+        slotIdx: data.teamIdx,
         isHost: false
       });
 
       this.updateHostSlotsUI();
       this.broadcastToClients({
         type: "SLOTS_UPDATE",
-        list: this.connectedClientsList
+        list: this.connectedClientsList,
+        isGroupMode: this.isGroupMode || false,
+        groupNames: this.groupNames || []
       });
     }
   },
@@ -2263,7 +2333,42 @@ const MarbleGameModule = {
     }
     if (data.type === "SLOTS_UPDATE") {
       this.connectedClientsList = data.list;
+      this.isGroupMode = data.isGroupMode;
+      this.groupNames = data.groupNames;
       this.updateHostSlotsUI();
+    }
+    if (data.type === "LOBBY_INFO") {
+      this.isGroupMode = data.isGroupMode;
+      this.groupNames = data.groupNames;
+      this.connectedClientsList = data.connectedClients || [];
+      
+      const select = document.getElementById("online-join-slot");
+      const label = select.parentNode.querySelector("label");
+      select.innerHTML = "";
+      
+      if (this.isGroupMode) {
+        if (label) label.innerText = "참가할 모둠 선택:";
+        this.groupNames.forEach((name, idx) => {
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.innerText = name;
+          select.appendChild(opt);
+        });
+      } else {
+        if (label) label.innerText = "탑승할 좌석 선택 (색상):";
+        const colors = ["파란색 (좌석 2)", "노란색 (좌석 3)", "보라색 (좌석 4)"];
+        const slotsTaken = this.connectedClientsList.map(c => c.slotIdx);
+        for (let i = 1; i <= 3; i++) {
+          if (!slotsTaken.includes(i)) {
+            const opt = document.createElement("option");
+            opt.value = i;
+            opt.innerText = colors[i - 1];
+            select.appendChild(opt);
+          }
+        }
+      }
+      
+      document.getElementById("modal-online-join").style.display = "flex";
     }
     if (data.type === "GAME_START") {
       this.logFeed(`🎮 방장이 게임을 시작했습니다. 로딩 중...`, "system");
@@ -2272,6 +2377,8 @@ const MarbleGameModule = {
         this.boardTiles = data.boardTiles; // Sync randomized board countries
         this.diceCount = data.diceCount;
         this.victoryCondition = data.victoryCondition;
+        this.isGroupMode = data.isGroupMode;
+        this.groupNames = data.groupNames;
         this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
         
         // Identify local player index on client device
@@ -2298,24 +2405,43 @@ const MarbleGameModule = {
     container.innerHTML = "";
     
     const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff"];
-    for (let i = 0; i < 4; i++) {
-      const occupant = this.connectedClientsList.find(c => c.slotIdx === i);
-      const row = document.createElement("div");
-      row.className = `online-slot-row ${occupant ? 'occupied' : ''}`;
-      
-      if (occupant) {
+    
+    if (this.isGroupMode) {
+      this.groupNames.forEach((groupName, i) => {
+        const members = this.connectedClientsList.filter(c => c.slotIdx === i);
+        const row = document.createElement("div");
+        row.className = `online-slot-row occupied`;
+        
+        const memberList = members.map(m => m.nickname).join(", ");
+        const memberDesc = members.length > 0 ? `(${members.length}명: ${memberList})` : "(비어있음)";
+        
         row.innerHTML = `
-          <span class="slot-name" style="color: ${colors[i]}">🛸 ${occupant.nickname}</span>
-          <span class="slot-status ready">${occupant.isHost ? "대장방장" : "대원준비"}</span>
+          <span class="slot-name" style="color: ${colors[i % 4]}">👥 [${groupName}] 모둠</span>
+          <span class="slot-status ready">${memberDesc}</span>
         `;
-      } else {
-        row.innerHTML = `
-          <span class="slot-name" style="color: #475569">🛸 대기중인 공석</span>
-          <span class="slot-status empty">비어있음</span>
-        `;
+        container.appendChild(row);
+      });
+    } else {
+      for (let i = 0; i < 4; i++) {
+        const occupant = this.connectedClientsList.find(c => c.slotIdx === i);
+        const row = document.createElement("div");
+        row.className = `online-slot-row ${occupant ? 'occupied' : ''}`;
+        
+        if (occupant) {
+          row.innerHTML = `
+            <span class="slot-name" style="color: ${colors[i]}">🛸 ${occupant.nickname}</span>
+            <span class="slot-status ready">${occupant.isHost ? "대장방장" : "대원준비"}</span>
+          `;
+        } else {
+          row.innerHTML = `
+            <span class="slot-name" style="color: #475569">🛸 대기중인 공석</span>
+            <span class="slot-status empty">비어있음</span>
+          `;
+        }
+        container.appendChild(row);
       }
-      container.appendChild(row);
     }
+    
     const startBtn = document.getElementById("btn-start-online");
     if (startBtn) {
       if (this.isHost) {
@@ -2335,22 +2461,48 @@ const MarbleGameModule = {
     const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff"];
     const avatars = ["✈️", "🚢", "🚂", "🚗"];
     
-    this.connectedClientsList.forEach((c, idx) => {
-      this.players.push({
-        id: c.slotIdx,
-        name: c.nickname,
-        color: colors[c.slotIdx],
-        avatar: avatars[c.slotIdx],
-        isHuman: true,
-        money: 1000,
-        position: 0,
-        isJailed: false,
-        jailTurns: 0,
-        hasFTA: false,
-        hasExemption: false,
-        isBankrupt: false
+    // Read game mode from DOM
+    const gameModeSelect = document.getElementById("online-game-mode");
+    this.isGroupMode = gameModeSelect && gameModeSelect.value === "group";
+    
+    if (this.isGroupMode) {
+      const groupNamesInput = document.getElementById("online-group-names-input");
+      this.groupNames = groupNamesInput ? groupNamesInput.value.split(",").map(s => s.trim()).filter(Boolean) : ["지구 모둠", "우주 모둠"];
+      
+      this.groupNames.forEach((gName, idx) => {
+        this.players.push({
+          id: idx,
+          name: gName,
+          color: colors[idx % 4],
+          avatar: avatars[idx % 4],
+          isHuman: true,
+          money: 1000,
+          position: 0,
+          isJailed: false,
+          jailTurns: 0,
+          hasFTA: false,
+          hasExemption: false,
+          isBankrupt: false
+        });
       });
-    });
+    } else {
+      this.connectedClientsList.forEach((c, idx) => {
+        this.players.push({
+          id: c.slotIdx,
+          name: c.nickname,
+          color: colors[c.slotIdx],
+          avatar: avatars[c.slotIdx],
+          isHuman: true,
+          money: 1000,
+          position: 0,
+          isJailed: false,
+          jailTurns: 0,
+          hasFTA: false,
+          hasExemption: false,
+          isBankrupt: false
+        });
+      });
+    }
 
     // Synchronize host selections before broadcasting
     const diceSelect = document.getElementById("online-dice-count");
@@ -2360,7 +2512,7 @@ const MarbleGameModule = {
     this.victoryCondition = victorySelect ? victorySelect.value : "turn_limit";
 
     this.gameMode = "online";
-    this.localPlayerIdx = 0; // Host is slot 0
+    this.localPlayerIdx = 0; // Host belongs to Group 0/Slot 0
 
     this.setupBoardWithRandomCountries();
     this.generateBoardTilesInDOM();
@@ -2454,19 +2606,49 @@ const MarbleGameModule = {
       this.logFeed(`🏠 ${activePlayer.name} 대원이 [${tile.name}]을(를) 구매 개척했습니다.`, "system");
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
+      
+      document.getElementById("modal-purchase-choice").style.display = "none";
+      document.getElementById("modal-upgrade-choice").style.display = "none";
+      
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     }
     
     if (data.type === "SYNC_CANCEL") {
       const tile = this.boardTiles[data.tileIdx];
       this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
+      
+      document.getElementById("modal-purchase-choice").style.display = "none";
+      document.getElementById("modal-upgrade-choice").style.display = "none";
+      
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     }
 
     if (data.type === "SYNC_QUIZ_START") {
       this.logFeed(`📝 ${activePlayer.name} 대원이 지리 퀴즈 도전을 시작했습니다...`, "system");
+      if (data.isUpgrade) {
+        this.activeQuizUpgrade = {
+          tileIdx: data.tileIdx,
+          nextLvl: data.nextLvl
+        };
+      } else {
+        this.activeQuizUpgrade = null;
+      }
+      this.triggerRemoteQuizChallenge(data.tileIdx, data.qIdx);
     }
     
     if (data.type === "SYNC_QUIZ_RESULT") {
       const tile = this.boardTiles[data.tileIdx];
+      clearInterval(this.activeQuizTimer);
+      
+      const buttons = document.querySelectorAll(".quiz-opt-btn");
+      if (buttons.length > 0) {
+        buttons.forEach(b => b.disabled = true);
+      }
+      
       if (data.isCorrect) {
         SoundEffects.playCorrect();
         if (data.isUpgrade) {
@@ -2475,13 +2657,31 @@ const MarbleGameModule = {
           this.tileOwners[data.tileIdx] = activePlayer.id;
           tile.buildLevel = 0;
         }
+        
+        if (this.activeQuiz && buttons[this.activeQuiz.data.ans]) {
+          buttons[this.activeQuiz.data.ans].classList.add("correct-choice");
+        }
+        
         this.logFeed(`🎯 정답! ${activePlayer.name} 대원이 지리 퀴즈를 맞추어 [${tile.name}]을(를) 무료 획득/증축했습니다!`, "quiz-correct");
       } else {
         SoundEffects.playWrong();
+        this.activeQuizUpgrade = null;
+        
+        if (this.activeQuiz && buttons[this.activeQuiz.data.ans]) {
+          buttons[this.activeQuiz.data.ans].classList.add("correct-choice");
+        }
+        
         this.logFeed(`❌ 오답! ${activePlayer.name} 대원이 퀴즈 해결에 실패했습니다.`, "quiz-wrong");
       }
-      this.updatePlayerDashboard();
-      this.renderDynamicBoardTiles();
+      
+      setTimeout(() => {
+        document.getElementById("modal-quiz").style.display = "none";
+        this.updatePlayerDashboard();
+        this.renderDynamicBoardTiles();
+        if (this.isLocalTurn()) {
+          this.passTurn();
+        }
+      }, data.isCorrect ? 1200 : 2000);
     }
 
     if (data.type === "SYNC_UPGRADE") {
@@ -2495,6 +2695,13 @@ const MarbleGameModule = {
       this.logFeed(`🏢 ${activePlayer.name} 대원이 [${tile.name}]에 [${levelsKo[data.nextLvl]}]을(를) 증축했습니다! (비용: ${data.cost}M, 새 통행료: ${nextToll}M)`, "system");
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
+      
+      document.getElementById("modal-purchase-choice").style.display = "none";
+      document.getElementById("modal-upgrade-choice").style.display = "none";
+      
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     }
     
     if (data.type === "SYNC_CHANCE") {
@@ -2538,6 +2745,12 @@ const MarbleGameModule = {
       }
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
+      
+      document.getElementById("modal-trade").style.display = "none";
+      
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     }
     
     if (data.type === "SYNC_BERMUDA_PAY") {
@@ -2551,6 +2764,10 @@ const MarbleGameModule = {
     
     if (data.type === "SYNC_BERMUDA_WAIT") {
       this.logFeed(`🕳️ 탈출에 실패했습니다! (남은 대기: ${activePlayer.jailTurns}턴)`, "system");
+      
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     }
 
     if (data.type === "SYNC_PASS_TURN") {
@@ -2612,6 +2829,79 @@ const MarbleGameModule = {
       
       setTimeout(() => this.processDiceResult(d1, d2), 600);
     }, 1200);
+  },
+
+  triggerRemoteQuizChallenge(tileIdx, qIdx) {
+    const tile = this.boardTiles[tileIdx];
+    const countryData = this.getCountryDataById(tile.id);
+    if (!countryData) return;
+    
+    document.getElementById("modal-purchase-choice").style.display = "none";
+    document.getElementById("modal-upgrade-choice").style.display = "none";
+    
+    const quiz = countryData.quizzes[qIdx];
+    this.activeQuiz = {
+      countryId: tile.id,
+      tileIdx: tileIdx,
+      data: quiz
+    };
+    
+    document.getElementById("quiz-continent-label").innerText = this.getContinentNameKo(tile.continent);
+    document.getElementById("quiz-country-name").innerText = tile.name;
+    const flagUrl = getFlagImageUrl(tile.id);
+    const quizFlagEl = document.getElementById("quiz-country-flag");
+    if (flagUrl) {
+      quizFlagEl.innerHTML = `<img src="${flagUrl}" alt="${tile.name} 국기" style="height: 32px; border-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); vertical-align: middle;">`;
+    } else {
+      quizFlagEl.innerText = countryData.flag;
+    }
+    document.getElementById("quiz-question-text").innerText = quiz.q;
+    
+    const quizImg = document.getElementById("quiz-landmark-img");
+    if (quizImg) {
+      const imgUrl = (typeof LANDMARK_IMAGES !== "undefined" && LANDMARK_IMAGES[tile.id]) ? LANDMARK_IMAGES[tile.id][0] : "";
+      quizImg.src = imgUrl;
+    }
+    
+    this.renderMiniMap("quiz-mini-map", tile.continent, tile.id);
+    
+    const container = document.getElementById("quiz-options-container");
+    container.innerHTML = "";
+    
+    quiz.options.forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "quiz-opt-btn";
+      btn.innerText = `${idx+1}. ${opt}`;
+      btn.addEventListener("click", () => this.handleQuizAnswer(idx));
+      container.appendChild(btn);
+    });
+
+    const modal = document.getElementById("modal-quiz");
+    modal.style.display = "flex";
+
+    let timeLeft = this.quizTimeLimit;
+    const timerSpan = document.getElementById("quiz-time-left");
+    timerSpan.innerText = timeLeft;
+    
+    clearInterval(this.activeQuizTimer);
+    
+    this.activeQuizTimer = setInterval(() => {
+      timeLeft--;
+      timerSpan.innerText = timeLeft;
+      
+      if (timeLeft <= 0) {
+        clearInterval(this.activeQuizTimer);
+        if (this.gameMode === "online" && this.isLocalTurn()) {
+          this.sendNetworkMessage({
+            type: "SYNC_QUIZ_RESULT",
+            tileIdx: tileIdx,
+            isCorrect: false,
+            isUpgrade: !!this.activeQuizUpgrade,
+            nextLvl: this.activeQuizUpgrade ? this.activeQuizUpgrade.nextLvl : 0
+          });
+        }
+      }
+    }, 1000);
   }
 };
 

@@ -226,6 +226,20 @@
               
               <div class="setup-grid-form" style="margin-top:10px;">
                 <div class="form-group">
+                  <label for="online-game-mode">게임 방식:</label>
+                  <select id="online-game-mode">
+                    <option value="individual" selected>개인전 (최대 4인)</option>
+                    <option value="group">모둠전 (인원 무제한)</option>
+                  </select>
+                </div>
+                <div class="form-group" id="online-group-names-group" style="display:none;">
+                  <label for="online-group-names-input">모둠 이름 설정 (쉼표 구분):</label>
+                  <input type="text" id="online-group-names-input" value="지구 모둠, 우주 모둠, 해양 모둠, 기후 모둠" placeholder="예: A모둠, B모둠">
+                </div>
+              </div>
+              
+              <div class="setup-grid-form" style="margin-top:10px;">
+                <div class="form-group">
                   <label for="online-dice-count">주사위 개수:</label>
                   <select id="online-dice-count">
                     <option value="1">1개</option>
@@ -646,7 +660,7 @@
   </div>
 
   <!-- Core Game Script & App Scripts (Cache-busted for instant updates) -->
-  <script src="app.js?v=2.2"></script>
-  <script src="marble.js?v=2.2"></script>
+  <script src="app.js?v=2.3"></script>
+  <script src="marble.js?v=2.3"></script>
 </body>
 </html>
