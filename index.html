@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세계 지리 탐험대 - 퀴즈로 배우는 월드 부루마불</title>
+  <!-- SEO Tags -->
+  <meta name="description" content="신나는 세계 지리 보드게임! 6대륙 24개 나라의 상징물과 우리나라와의 관계를 퀴즈 부루마불로 학습하고, 친구 또는 AI와 함께 탐험해 보세요.">
+  <meta name="keywords" content="세계지리, 초등 사회, 교육 게임, 부루마불, 세계여행, 나라 특징, 역사 교류, 피라미드, 에펠탑">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- PeerJS WebRTC Library for P2P multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <!-- Background Layers -->
+  <div class="stars-container" id="stars-container"></div>
+  <div class="nebula-overlay"></div>
+
+  <!-- Main Container -->
+  <div id="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-logo" id="btn-home-logo">
+        <span class="logo-icon">🗺️</span>
+        <h1 class="logo-text">WORLD <span>EXPLORER</span></h1>
+      </div>
+      <div class="header-status">
+        <button class="btn-top-badge" id="btn-view-badges">
+          <span class="badge-icon">🏅</span> 획득 뱃지 <span id="badge-count" class="badge-num">0 / 10</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mascot Commentary Bar -->
+    <section class="mascot-section" id="mascot-bar">
+      <div class="mascot-avatar">🌍</div>
+      <div class="mascot-speech-bubble">
+        <p id="mascot-text">안녕! 나는 세계 지리 탐험 도우미 '누리'야. 멋진 비행선을 타고 대륙별 여행을 떠날 준비가 되었니?</p>
+      </div>
+    </section>
+
+    <!-- MAIN VIEWPORTS -->
+    <main id="main-content">
+      
+      <!-- VIEW 1: LOBBY -->
+      <section id="view-lobby" class="app-view active">
+        <div class="lobby-welcome">
+          <h2>지구촌 나라들의 신비로운 이야기 속으로!</h2>
+          <p>세계 6대륙 대표 나라의 기후와 랜드마크, 그리고 우리나라와 맺어온 소중한 인연을 게임으로 배워봐요.</p>
+        </div>
+        <div class="lobby-grid">
+          <!-- Card 1: Study Library -->
+          <div class="lobby-card card-library" id="card-goto-library">
+            <div class="card-icon">📖</div>
+            <h3>세계 지리 사전</h3>
+            <p>24개 국가들의 기본 정보, 랜드마크 스케치, 우리나라와의 소중한 역사·경제적 교류 관계를 미리 공부해요.</p>
+            <span class="card-action">사전 열기 →</span>
+          </div>
+          <!-- Card 2: Sorter Mini-game -->
+          <div class="lobby-card card-sorter" id="card-goto-sorter">
+            <div class="card-icon">🌀</div>
+            <h3>대륙 분류기</h3>
+            <p>날아가는 국가 카드를 알맞은 6대륙 포털에 신속히 드롭하여 맞춰보세요! (시간제한 60초)</p>
+            <span class="card-action">분류기 시작 →</span>
+          </div>
+          <!-- Card 3: Memory Matching Game -->
+          <div class="lobby-card card-memory" id="card-goto-memory">
+            <div class="card-icon">🧩</div>
+            <h3>지리 카드 맞추기</h3>
+            <p>카드를 한 쌍씩 뒤집어 [국기/국가명]과 일치하는 [대표 랜드마크/수도] 짝을 맞춰 암기해보세요!</p>
+            <span class="card-action">카드매칭 시작 →</span>
+          </div>
+          <!-- Card 4: Marble Game -->
+          <div class="lobby-card card-marble" id="card-goto-marble">
+            <div class="card-icon">🎲</div>
+            <h3>세계 탐험 부루마불</h3>
+            <p>주사위를 굴려 세계를 누비고, 기발한 지리 퀴즈를 맞춰 나만의 탐험 기지를 세워 전 세계를 정복해 보세요!</p>
+            <span class="card-action">게임 시작 →</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: STUDY LIBRARY (사전) -->
+      <section id="view-library" class="app-view">
+        <div class="view-header">
+          <button class="btn-back" id="btn-library-back">← 메인화면</button>
+          <h2>📖 세계 지리 사전</h2>
+        </div>
+        
+        <!-- Continent Select tabs -->
+        <div class="season-selector">
+          <button class="season-tab active" data-season="asia" id="tab-asia">🌏 아시아</button>
+          <button class="season-tab" data-season="europe" id="tab-europe">🇪🇺 유럽</button>
+          <button class="season-tab" data-season="north_america" id="tab-north-america">🇺🇸 북아메리카</button>
+          <button class="season-tab" data-season="south_america" id="tab-south-america">💃 남아메리카</button>
+          <button class="season-tab" data-season="africa" id="tab-africa">🦁 아프리카</button>
+          <button class="season-tab" data-season="oceania" id="tab-oceania">🦘 오세아니아</button>
+        </div>
+
+        <div class="library-layout">
+          <!-- Left: Country list -->
+          <div class="constellation-list" id="library-list-container">
+            <!-- Populated via JS -->
+          </div>
+
+          <!-- Right: Details panel and Interactive vector canvas -->
+          <div class="library-details glass-panel">
+            <div class="library-map-wrapper">
+              <img id="library-landmark-img" style="width:100%; height:100%; object-fit:cover; display:block; border-radius:8px;" src="" alt="상징물 실제 사진">
+              <canvas id="library-canvas" width="400" height="400" style="display:none;"></canvas>
+              
+              <!-- Frosted glass image info overlay (unifies image and description) -->
+              <div id="library-landmark-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.7) 60%, rgba(15,23,42,0) 100%); color: white; padding: 20px 15px 45px 15px; text-align: left; box-sizing: border-box; pointer-events: none;">
+                <div id="library-overlay-title" style="font-weight: 800; font-size: 18px; color: #38bdf8; margin-bottom: 5px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 0.5px;">랜드마크</div>
+                <div id="library-overlay-desc" style="font-size: 12px; color: rgba(255,255,255,0.9); line-height: 1.4; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); font-weight: 400; max-height: 54px; overflow: hidden;">설명</div>
+              </div>
+
+              <div class="chart-guide" id="library-image-guide">국가별 대표 상징물 실제 사진입니다</div>
+            </div>
+            <div class="library-info-panel">
+              <div class="info-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                <img id="lib-flag-img" src="" style="width: 38px; height: auto; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: block;" alt="국기">
+                <div style="display: flex; flex-direction: column; justify-content: center;">
+                  <div style="display: flex; align-items: baseline; gap: 8px;">
+                    <h3 id="lib-name-ko" style="margin: 0; font-size: 24px; font-weight: 800; color: #fff;">일본</h3>
+                    <span id="lib-capital" style="font-size: 14px; color: #38bdf8; font-weight: 600;">(수도: 도쿄)</span>
+                  </div>
+                  <span class="name-en" id="lib-name-en" style="margin: 0; font-size: 14px; color: #94a3b8; font-weight: 500;">Japan</span>
+                </div>
+              </div>
+              <div class="info-badge-row">
+                <span class="info-tag" id="lib-season-tag">아시아 대륙</span>
+                <span class="info-tag bright-star" id="lib-bright-star">랜드마크: 후지산</span>
+              </div>
+              <div class="info-body">
+                <h4>자연 및 문화 특징</h4>
+                <p id="lib-shape-desc">나라 정보...</p>
+                <div class="relation-box">
+                  <h4>재미있는 사실 & 우리나라와의 관계</h4>
+                  <p id="lib-story-desc">관계 및 상세 내용...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: BOARD GAME VIEW -->
+      <section id="view-marble" class="app-view">
+        <div class="view-header">
+          <button class="btn-back" id="btn-marble-back">← 메인화면</button>
+          <h2>🎲 세계 탐험 부루마불</h2>
+        </div>
+
+        <!-- 3.1. Game Mode Setup (Before Game Start) -->
+        <div id="marble-setup-container" class="setup-container glass-panel">
+          <h3>🎮 탐험 게임 설정</h3>
+          
+          <div class="setup-tabs">
+            <button class="setup-tab active" id="setup-tab-local">🏠 한 화면 플레이 (로컬)</button>
+            <button class="setup-tab" id="setup-tab-online">🌐 멀티플레이 (온라인)</button>
+          </div>
+
+          <!-- Local play config -->
+          <div id="setup-local-panel" class="setup-panel active">
+            <div class="setup-grid-form">
+              <div class="form-group">
+                <label for="local-player-count">플레이어 인원 수:</label>
+                <select id="local-player-count">
+                  <option value="2">2명</option>
+                  <option value="3">3명</option>
+                  <option value="4" selected>4명</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="setup-dice-count">사용할 주사위 개수:</label>
+                <select id="setup-dice-count">
+                  <option value="1">1개</option>
+                  <option value="2" selected>2개 (더블 룰 적용)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="setup-victory-condition">승리 룰 설정:</label>
+                <select id="setup-victory-condition">
+                  <option value="turn_limit" selected>턴 제한 완주 (15턴 최다 자산)</option>
+                  <option value="asset_target">자산 목표 달성 (2000M 최초 도달)</option>
+                  <option value="monopoly">대륙 독점 (한 대륙 모든 국가 개척)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="player-setup-list" id="local-player-inputs">
+              <!-- JS will build slot configurations -->
+            </div>
+            <button class="btn-primary" id="btn-start-local">세계 탐험 시작! 🛫</button>
+          </div>
+
+          <!-- Online play config -->
+          <div id="setup-online-panel" class="setup-panel">
+            <div class="online-choice-grid">
+              <div class="choice-card" id="btn-choice-create">
+                <div class="choice-icon">📡</div>
+                <h4>새로운 탐험 개설 (방장)</h4>
+                <p>내가 방장이 되어 링크를 만들고 친구들을 나의 우주선에 초대합니다.</p>
+              </div>
+              <div class="choice-card" id="btn-choice-join">
+                <div class="choice-icon">🔌</div>
+                <h4>기존 탐험 참가 (대원)</h4>
+                <p>친구가 만들어준 초대 주소나 방 ID를 입력하여 같은 보드에 접속합니다.</p>
+              </div>
+            </div>
+
+            <!-- Create room sub-panel -->
+            <div id="online-create-sub" class="online-sub-panel" style="display:none;">
+              <div class="form-group">
+                <label>나의 닉네임 입력:</label>
+                <input type="text" id="online-host-name" value="대장비행사" placeholder="닉네임 입력">
+              </div>
+              
+              <div class="setup-grid-form" style="margin-top:10px;">
+                <div class="form-group">
+                  <label for="online-dice-count">주사위 개수:</label>
+                  <select id="online-dice-count">
+                    <option value="1">1개</option>
+                    <option value="2" selected>2개 (더블 룰)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="online-victory-condition">승리 룰:</label>
+                  <select id="online-victory-condition">
+                    <option value="turn_limit" selected>턴 제한 완주 (15턴)</option>
+                    <option value="asset_target">자산 목표 달성 (2000M)</option>
+                    <option value="monopoly">대륙 독점</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="room-creation-status" style="margin-top:14px;">
+                <button class="btn-secondary" id="btn-generate-room">방 만들기</button>
+                <div id="room-link-box" style="display:none;" class="glass-panel">
+                  <p>아래 링크를 복사하여 친구들에게 공유하세요!</p>
+                  <input type="text" id="share-link-input" readonly>
+                  <button class="btn-small" id="btn-copy-link">📋 복사</button>
+                </div>
+              </div>
+              <div class="online-slots-list" id="host-slots-container">
+                <!-- Connected players list -->
+              </div>
+              <button class="btn-primary" id="btn-start-online" disabled>모든 대원 준비 완료 - 게임 시작! 🚀</button>
+              <button class="btn-text" id="btn-back-choice-c">← 이전 단계</button>
+            </div>
+
+            <!-- Join room sub-panel -->
+            <div id="online-join-sub" class="online-sub-panel" style="display:none;">
+              <div class="form-group">
+                <label>연결할 방 ID (Peer ID):</label>
+                <input type="text" id="online-join-room-id" placeholder="방 ID 또는 URL 전체 입력">
+              </div>
+              <button class="btn-primary" id="btn-connect-join">방 검색하기</button>
+              <button class="btn-text" id="btn-back-choice-j">← 이전 단계</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3.2. Main Board Game Interface (Visible when game runs) -->
+        <div id="marble-game-layout" style="display: none;">
+          <!-- Left Column: Status panel for players -->
+          <div class="game-sidebar-players">
+            <div id="players-status-list">
+              <!-- Player Status cards dynamically updated -->
+            </div>
+            
+            <div class="game-log-box glass-panel">
+              <h4>📋 실시간 지리 피드</h4>
+              <div id="game-feed-messages" class="feed-content">
+                <!-- System event feeds -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Center/Right Column: 7x7 Board and Central earth control -->
+          <div class="board-wrapper">
+            <div class="board-grid" id="board-grid-element">
+              <!-- Tiles 0 to 23 generated dynamically via JS for precision layout -->
+              
+              <!-- Center area overlay -->
+              <div class="board-center-area">
+                <div class="earth-container">
+                  <!-- Rotating global model -->
+                  <div class="earth-globe" id="spinning-earth">🌍</div>
+                </div>
+                
+                <div class="dice-dashboard glass-panel">
+                  <h4 id="turn-indicator">대장비행사 님의 턴!</h4>
+                  
+                  <!-- 3D CSS Interactive Dice Area -->
+                  <div class="dice-area">
+                    <div class="dice-cube-3d" id="dice-container-1">
+                      <div class="cube" id="cube-element-1">
+                        <div class="cube-face front"><div class="dice-dots dots-1"><div class="dot red-dot"></div></div></div>
+                        <div class="cube-face back"><div class="dice-dots dots-6"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face right"><div class="dice-dots dots-2"><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face left"><div class="dice-dots dots-5"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face top"><div class="dice-dots dots-3"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face bottom"><div class="dice-dots dots-4"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                      </div>
+                    </div>
+                    <div class="dice-cube-3d" id="dice-container-2">
+                      <div class="cube" id="cube-element-2">
+                        <div class="cube-face front"><div class="dice-dots dots-1"><div class="dot red-dot"></div></div></div>
+                        <div class="cube-face back"><div class="dice-dots dots-6"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face right"><div class="dice-dots dots-2"><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face left"><div class="dice-dots dots-5"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face top"><div class="dice-dots dots-3"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                        <div class="cube-face bottom"><div class="dice-dots dots-4"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button class="btn-primary btn-roll-dice" id="btn-roll-dice">주사위 던지기 🎲</button>
+                  <p id="dice-double-message" class="highlight-text" style="display:none; color:#f43f5e; font-weight:700; margin-top:4px;">더블! 🎲 한 번 더 던집니다!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: CONTINENT SORTER GAME -->
+      <section id="view-sorter" class="app-view">
+        <div class="view-header">
+          <button class="btn-back" id="btn-sorter-back">← 메인화면</button>
+          <h2>🌀 대륙 분류기</h2>
+          <div class="sorter-header-stats">
+            <span class="game-timer">시간: <span id="sorter-time-left">60</span>초</span>
+            <span class="game-score">점수: <span id="sorter-score">0</span>점</span>
+          </div>
+        </div>
+
+        <div class="sorter-layout glass-panel">
+          <!-- Continent portals (Zones for dropping) -->
+          <div class="portals-grid">
+            <div class="continent-portal" data-continent="asia" style="--c-accent: var(--color-asia);">
+              <div class="portal-core">🌏</div>
+              <span class="portal-label">아시아</span>
+            </div>
+            <div class="continent-portal" data-continent="europe" style="--c-accent: var(--color-europe);">
+              <div class="portal-core">🇪🇺</div>
+              <span class="portal-label">유럽</span>
+            </div>
+            <div class="continent-portal" data-continent="north_america" style="--c-accent: var(--color-north-america);">
+              <div class="portal-core">🇺🇸</div>
+              <span class="portal-label">북아메리카</span>
+            </div>
+            <div class="continent-portal" data-continent="south_america" style="--c-accent: var(--color-south-america);">
+              <div class="portal-core">💃</div>
+              <span class="portal-label">남아메리카</span>
+            </div>
+            <div class="continent-portal" data-continent="africa" style="--c-accent: var(--color-africa);">
+              <div class="portal-core">🦁</div>
+              <span class="portal-label">아프리카</span>
+            </div>
+            <div class="continent-portal" data-continent="oceania" style="--c-accent: var(--color-oceania);">
+              <div class="portal-core">🦘</div>
+              <span class="portal-label">오세아니아</span>
+            </div>
+          </div>
+
+          <!-- Active floating card to drag -->
+          <div class="sorter-card-area">
+            <div class="sorter-active-card" id="sorter-drag-card" draggable="true" style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <span id="sorter-card-flag" class="sorter-card-flag">🇯🇵</span>
+              <img id="sorter-card-img" style="width: 100%; height: 90px; object-fit: cover; border-radius: 8px; display: block;" src="" alt="상징물 실제 사진">
+              <h4 id="sorter-card-name" class="sorter-card-name">일본</h4>
+              <p class="sorter-card-hint">마우스로 드래그해서 대륙에 떨어뜨리세요</p>
+            </div>
+          </div>
+          
+          <div class="sorter-start-overlay" id="sorter-start-panel">
+            <h3>대륙 분류 비행 시작</h3>
+            <p>무작위로 주어지는 나라 카드를 알맞은 6대륙 포털로 드래그하여 골인시키세요.</p>
+            <p>제한 시간 60초 내에 <strong>15점 이상</strong>을 얻으면 <strong>'분류의 달인' 뱃지</strong>가 잠금 해제됩니다!</p>
+            <button class="btn-primary" id="btn-start-sorter" style="max-width:240px; margin-top:20px;">비행 시작! 🌀</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: GEOGRAPHY CARD MEMORY MATCHING GAME -->
+      <section id="view-memory" class="app-view">
+        <div class="view-header">
+          <button class="btn-back" id="btn-memory-back">← 메인화면</button>
+          <h2>🧩 지리 카드 맞추기</h2>
+          <div class="sorter-header-stats">
+            <span class="game-timer">시간: <span id="memory-time-left">0</span>초</span>
+            <span class="game-score">실수 횟수: <span id="memory-miss-count">0</span> / 12회</span>
+          </div>
+        </div>
+
+        <div class="memory-layout glass-panel">
+          <!-- 4x4 Grid of Cards -->
+          <div class="memory-cards-grid" id="memory-cards-grid-element">
+            <!-- 16 cards generated dynamically -->
+          </div>
+
+          <div class="sorter-start-overlay" id="memory-start-panel">
+            <h3>지리 짝 맞추기 시작</h3>
+            <p>16장의 카드를 뒤집어서 [나라 국기/명칭] 카드와 그 나라의 [대표 랜드마크/수도] 짝을 맞춰보세요.</p>
+            <p>실수 횟수 <strong>12회 이하</strong>로 모든 카드 짝을 맞춰 클리어하면 <strong>'기억력의 신' 뱃지</strong>를 얻습니다!</p>
+            <button class="btn-primary" id="btn-start-memory" style="max-width:240px; margin-top:20px;">시작하기 🧩</button>
+          </div>
+        </div>
+      </section>
+
+
+
+    </main>
+  </div>
+
+  <!-- GLOBAL MODALS & POPUPS -->
+
+  <!-- 1. QUIZ POPUP (Educational quiz challenge) -->
+  <div id="modal-quiz" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel quiz-modal-content">
+      <div class="modal-header">
+        <span class="quiz-badge" id="quiz-continent-label">아시아</span>
+        <h3>🌏 <span id="quiz-country-name">일본</span> 지리 탐험 퀴즈</h3>
+      </div>
+      <div class="modal-body">
+        <div class="quiz-visual-box" style="display:flex; flex-direction:column; gap:12px; align-items:stretch;">
+          <div style="display:flex; gap:16px; align-items:center;">
+            <span class="quiz-flag-large" id="quiz-country-flag">🇯🇵</span>
+            <div class="quiz-question-box" style="flex:1;">
+              <p id="quiz-question-text">여기에 퀴즈 질문이 들어갑니다.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; height:130px; align-items:stretch;">
+            <img id="quiz-landmark-img" style="flex: 1.8; height:100%; object-fit:cover; border-radius:8px; display:block;" src="" alt="상징물 실제 사진">
+            <div id="quiz-mini-map" style="flex: 1; height:100%; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+              <!-- Dynamic map silhouette and indicator will be injected here -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="quiz-options-list" id="quiz-options-container">
+          <!-- 4 option buttons -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <p class="quiz-timer">남은 시간: <span id="quiz-time-left">15</span>초</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CHANCE CARD POPUP -->
+  <div id="modal-chance" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel card-modal-content animated-card">
+      <div class="card-back-design">🔑</div>
+      <div class="card-front" style="display:none;">
+        <div class="card-icon-header">🌟</div>
+        <h3 id="chance-title">황금열쇠 카드</h3>
+        <p id="chance-desc">카드 내용 설명...</p>
+        <button class="btn-primary" id="btn-close-chance">카드 효과 확인 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. WARP SELECTOR (Airport destination choice) -->
+  <div id="modal-warp" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3>🛫 직항 세계 비행 (워프 이동)</h3>
+      </div>
+      <div class="modal-body">
+        <p>다음 턴에 즉시 공간 이동하여 탐험할 국가를 선택해 주세요!</p>
+        <div class="warp-grid" id="warp-destinations-container">
+          <!-- warp tiles -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. TRADE TOLL PAYMENT NOTICE -->
+  <div id="modal-trade" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3>💸 문화/교역 통행료 납부</h3>
+      </div>
+      <div class="modal-body text-center">
+        <span class="big-icon">🤝</span>
+        <p><strong id="trade-visitor">플레이어2</strong> 대원이 <strong id="trade-owner">플레이어1</strong> 대원의 영토인 <strong id="trade-country">이집트</strong>에 착륙했습니다.</p>
+        <p>문화 교류 및 수입 통행세로 <strong class="highlight" id="trade-amount">100</strong> 마일리지를 납부해야 합니다.</p>
+        <button class="btn-primary" id="btn-pay-trade">통행료 납부 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. GAMEOVER SUMMARY -->
+  <div id="modal-gameover" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>🏆 세계 탐험 원정 완료! (게임 종료)</h3>
+      </div>
+      <div class="modal-body">
+        <div class="gameover-results" id="gameover-rankings">
+          <!-- Rankings card -->
+        </div>
+        <div class="earned-badges-summary" id="gameover-badges">
+          <!-- Badges unlocked in this run -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btn-gameover-exit">메인 로비로 가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. ONLINE JOIN NICKNAME INPUT (For client entering a join room) -->
+  <div id="modal-online-join" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3>🌐 대원 참가 등록</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>나의 탐험 닉네임:</label>
+          <input type="text" id="online-join-nickname" placeholder="닉네임 입력" value="동료비행사">
+        </div>
+        <div class="form-group">
+          <label>탑승할 좌석 선택 (색상):</label>
+          <select id="online-join-slot">
+            <option value="1">좌석 2 (파란색)</option>
+            <option value="2">좌석 3 (노란색)</option>
+            <option value="3">좌석 4 (보라색)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btn-submit-join">탐험대 탑승</button>
+        <button class="btn-secondary" id="btn-cancel-join">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. PURCHASE CHOICE POPUP -->
+  <div id="modal-purchase-choice" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel text-center" style="max-width: 400px;">
+      <div class="modal-header">
+        <span class="quiz-badge" id="pur-continent-label">아시아</span>
+        <h3>🌏 <span id="pur-country-name">일본</span> 개척 방식 선택</h3>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:center; align-items:center; gap:24px; margin: 15px 0;">
+          <div id="pur-country-flag" style="display:flex; justify-content:center; align-items:center; min-height:60px;">🇯🇵</div>
+          <div id="pur-mini-map" style="width: 140px; height: 90px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+            <!-- Dynamic map silhouette and indicator will be injected here -->
+          </div>
+        </div>
+        <p style="font-size:14.5px; margin-bottom:12px; line-height:1.5; color:#cbd5e1;">이 국가에 탐험 기지를 개척하려고 합니다.<br>원하시는 개척 방식을 선택해 주세요.</p>
+        
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-glass-bright); padding:12px; border-radius:8px; margin-bottom:20px; font-size:13.5px; text-align:left; display:flex; justify-content:space-around;">
+          <div>개척 비용: <strong class="highlight" id="pur-country-price" style="color:#00f0ff; font-weight:800;">200M</strong></div>
+          <div style="width:1px; background:rgba(255,255,255,0.1); height:16px;"></div>
+          <div>나의 자산: <strong id="pur-my-money" style="color:#10b981; font-weight:800;">1000M</strong></div>
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <button class="btn-primary" id="btn-pur-buy" style="background: linear-gradient(to right, #10b981, #059669); color:#fff;">💰 마일리지 지불 후 즉시 구매</button>
+          <button class="btn-primary" id="btn-pur-quiz" style="background: linear-gradient(to right, #3b82f6, #1d4ed8); color:#fff;">🎓 지리 퀴즈 도전 (정답 시 무료 개척)</button>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:14px; justify-content:center;">
+        <button class="btn-text" id="btn-pur-cancel" style="margin-top:0;">기지 개척 포기 (지나가기)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. UPGRADE CHOICE POPUP -->
+  <div id="modal-upgrade-choice" class="app-modal" style="display: none;">
+    <div class="modal-content glass-panel text-center" style="max-width: 400px;">
+      <div class="modal-header">
+        <span class="quiz-badge" id="upg-continent-label">아시아</span>
+        <h3>🏢 <span id="upg-country-name">일본</span> 기지 업그레이드</h3>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:center; align-items:center; gap:24px; margin: 15px 0;">
+          <div id="upg-country-flag" style="display:flex; justify-content:center; align-items:center; min-height:60px;">🇯🇵</div>
+          <div id="upg-mini-map" style="width: 140px; height: 90px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+            <!-- Dynamic map silhouette and indicator will be injected here -->
+          </div>
+        </div>
+        <p style="font-size:14.5px; margin-bottom:12px; line-height:1.5; color:#cbd5e1;">현재 개척 단계: <strong id="upg-current-level" style="color:#38bdf8;">대지</strong><br>다음 단계: <strong id="upg-next-level" style="color:#f59e0b;">별장 (🏠🏠)</strong></p>
+        
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-glass-bright); padding:12px; border-radius:8px; margin-bottom:20px; font-size:13.5px; text-align:left; display:flex; justify-content:space-around;">
+          <div>건설 비용: <strong class="highlight" id="upg-cost" style="color:#00f0ff; font-weight:800;">80M</strong></div>
+          <div style="width:1px; background:rgba(255,255,255,0.1); height:16px;"></div>
+          <div>나의 자산: <strong id="upg-my-money" style="color:#10b981; font-weight:800;">1000M</strong></div>
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <button class="btn-primary" id="btn-upg-buy" style="background: linear-gradient(to right, #10b981, #059669); color:#fff;">💰 건설비 지불 후 즉시 업그레이드</button>
+          <button class="btn-primary" id="btn-upg-quiz" style="background: linear-gradient(to right, #3b82f6, #1d4ed8); color:#fff;">🎓 지리 퀴즈 도전 (정답 시 무료 업그레이드)</button>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:14px; justify-content:center;">
+        <button class="btn-text" id="btn-upg-cancel" style="margin-top:0;">업그레이드 보류 (턴 종료)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. GOOGLE MAP ZOOM POPUP -->
+  <div id="modal-google-map" class="app-modal" style="display: none; z-index: 10000;">
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .spinner-ring-animation {
+        animation: spin 1.5s linear infinite;
+      }
+    </style>
+    <div class="modal-content glass-panel" style="max-width: 600px; width: 90%; height: 75vh; display: flex; flex-direction: column; padding: 20px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+        <h3 id="google-map-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">📍 정밀 구글 지도</h3>
+        <button class="btn-text" id="btn-close-google-map" style="margin: 0; padding: 4px 10px; font-size: 18px; color: #94a3b8; cursor: pointer; background: transparent; border: none;">✕</button>
+      </div>
+      <div class="modal-body" style="flex: 1; position: relative; border-radius: 8px; overflow: hidden; background: #0f172a;">
+        <!-- Loading Spinner -->
+        <div id="google-map-spinner" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1; background: #0f172a; color: #38bdf8;">
+          <div class="spinner-ring spinner-ring-animation" style="width: 40px; height: 40px; border: 4px solid rgba(56, 189, 248, 0.1); border-top-color: #38bdf8; border-radius: 50%;"></div>
+        </div>
+        <iframe id="google-map-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;" allowfullscreen="" loading="lazy"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Game Script & App Scripts -->
+  <script src="app.js"></script>
+  <script src="marble.js"></script>
+</body>
+</html>
