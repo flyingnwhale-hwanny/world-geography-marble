@@ -2688,6 +2688,7 @@ const MarbleGameModule = {
   sendNetworkMessage(data) {
     if (this.isHost) {
       this.broadcastToClients(data);
+      this.handleSyncMessage(data);
     } else if (this.conn && this.conn.open) {
       this.conn.send(data);
     }
