@@ -315,6 +315,8 @@ const MarbleGameModule = {
   isHost: false,
   roomId: "",
   connectedClientsList: [],
+  isSpectatorMode: false,
+  gameHistory: [],
   
   // 2.1. Initialization
   init() {
@@ -326,6 +328,10 @@ const MarbleGameModule = {
     this.gameActive = false;
     document.getElementById("marble-setup-container").style.display = "block";
     document.getElementById("marble-game-layout").style.display = "none";
+    
+    // Hide spectator control bar on reset
+    const controlBar = document.getElementById("spectator-control-bar");
+    if (controlBar) controlBar.style.display = "none";
     
     if (this.peer) {
       try { this.peer.destroy(); } catch(e) {}
@@ -355,6 +361,8 @@ const MarbleGameModule = {
     this.pendingJoinData = null;
     this.isGroupMode = false;
     this.groupNames = [];
+    this.isSpectatorMode = false;
+    this.gameHistory = [];
     
     const pCountSelect = document.getElementById("local-player-count");
     if (pCountSelect) {
@@ -512,6 +520,29 @@ const MarbleGameModule = {
           this.peer = null;
         }
         this.resetToSetup();
+      });
+    }
+
+    const rollbackBtn = document.getElementById("btn-rollback-turn");
+    if (rollbackBtn) {
+      rollbackBtn.addEventListener("click", () => {
+        if (!this.isHost) return;
+        if (this.gameHistory.length <= 1) {
+          alert("되돌릴 이전 차례 기록이 없습니다.");
+          return;
+        }
+        
+        // Pop the current turn's snapshot
+        this.gameHistory.pop();
+        // Pop the previous turn's snapshot to apply it
+        const prevState = this.gameHistory.pop();
+        if (prevState) {
+          this.applyHistoryState(prevState);
+          this.broadcastToClients({
+            type: "SYNC_ROLLBACK",
+            state: prevState
+          });
+        }
       });
     }
 
@@ -741,6 +772,13 @@ const MarbleGameModule = {
     // Configure visible dice count
     document.getElementById("dice-container-2").style.display = (this.diceCount === 1) ? "none" : "inline-block";
     
+    // Show or hide spectator control bar
+    const controlBar = document.getElementById("spectator-control-bar");
+    if (controlBar) {
+      controlBar.style.display = (this.isSpectatorMode && this.isHost) ? "flex" : "none";
+    }
+    this.gameHistory = [];
+    
     this.gameActive = true;
     this.currentPlayerIdx = 0;
     this.turnNumber = 1;
@@ -765,6 +803,22 @@ const MarbleGameModule = {
   startTurnCycle() {
     if (!this.gameActive) return;
     
+    // Save history snapshot on host
+    if (this.isHost) {
+      const snapshot = {
+        players: JSON.parse(JSON.stringify(this.players)),
+        tileOwners: JSON.parse(JSON.stringify(this.tileOwners)),
+        boardTilesLevels: this.boardTiles.map(t => t.buildLevel || 0),
+        currentPlayerIdx: this.currentPlayerIdx,
+        turnNumber: this.turnNumber,
+        doubleStreak: this.doubleStreak
+      };
+      this.gameHistory.push(snapshot);
+      if (this.gameHistory.length > 20) {
+        this.gameHistory.shift();
+      }
+    }
+
     const activePlayer = this.players[this.currentPlayerIdx];
     
     if (activePlayer.isBankrupt) {
@@ -2138,6 +2192,9 @@ const MarbleGameModule = {
     } else {
       this.groupNames = [];
     }
+
+    const hostRoleSelect = document.getElementById("online-host-role");
+    this.isSpectatorMode = hostRoleSelect && hostRoleSelect.value === "spectator";
     
     this.logFeed("📡 PeerJS 서버에 접속 중...", "system");
     const rId = "geo-" + Math.random().toString(36).substr(2, 6);
@@ -2160,8 +2217,9 @@ const MarbleGameModule = {
       this.connectedClientsList = [{
         peerId: id,
         nickname: nickname,
-        slotIdx: 0,
-        isHost: true
+        slotIdx: this.isSpectatorMode ? -1 : 0,
+        isHost: true,
+        isSpectator: this.isSpectatorMode
       }];
       this.updateHostSlotsUI();
       
@@ -2290,6 +2348,7 @@ const MarbleGameModule = {
         type: "LOBBY_INFO",
         isGroupMode: this.isGroupMode || false,
         groupNames: this.groupNames || [],
+        isSpectatorMode: this.isSpectatorMode || false,
         connectedClients: this.connectedClientsList
       });
       return;
@@ -2317,7 +2376,8 @@ const MarbleGameModule = {
         type: "SLOTS_UPDATE",
         list: this.connectedClientsList,
         isGroupMode: this.isGroupMode || false,
-        groupNames: this.groupNames || []
+        groupNames: this.groupNames || [],
+        isSpectatorMode: this.isSpectatorMode || false
       });
     }
   },
@@ -2335,11 +2395,13 @@ const MarbleGameModule = {
       this.connectedClientsList = data.list;
       this.isGroupMode = data.isGroupMode;
       this.groupNames = data.groupNames;
+      this.isSpectatorMode = data.isSpectatorMode;
       this.updateHostSlotsUI();
     }
     if (data.type === "LOBBY_INFO") {
       this.isGroupMode = data.isGroupMode;
       this.groupNames = data.groupNames;
+      this.isSpectatorMode = data.isSpectatorMode;
       this.connectedClientsList = data.connectedClients || [];
       
       const select = document.getElementById("online-join-slot");
@@ -2356,13 +2418,15 @@ const MarbleGameModule = {
         });
       } else {
         if (label) label.innerText = "탑승할 좌석 선택 (색상):";
-        const colors = ["파란색 (좌석 2)", "노란색 (좌석 3)", "보라색 (좌석 4)"];
+        const colors = ["빨간색 (좌석 1)", "파란색 (좌석 2)", "노란색 (좌석 3)", "보라색 (좌석 4)"];
         const slotsTaken = this.connectedClientsList.map(c => c.slotIdx);
-        for (let i = 1; i <= 3; i++) {
+        
+        const startIdx = this.isSpectatorMode ? 0 : 1;
+        for (let i = startIdx; i <= 3; i++) {
           if (!slotsTaken.includes(i)) {
             const opt = document.createElement("option");
             opt.value = i;
-            opt.innerText = colors[i - 1];
+            opt.innerText = colors[i];
             select.appendChild(opt);
           }
         }
@@ -2405,6 +2469,19 @@ const MarbleGameModule = {
     container.innerHTML = "";
     
     const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff", "#10b981", "#f97316", "#ec4899", "#a855f7"];
+    
+    // Display Spectator Host at the top if present
+    const spectatorHost = this.connectedClientsList.find(c => c.isSpectator);
+    if (spectatorHost) {
+      const specRow = document.createElement("div");
+      specRow.className = "online-slot-row occupied";
+      specRow.style.border = "1px dashed rgba(255, 255, 255, 0.2)";
+      specRow.innerHTML = `
+        <span class="slot-name" style="color: #94a3b8">👁️ ${spectatorHost.nickname} (방장)</span>
+        <span class="slot-status ready">관전 모드</span>
+      `;
+      container.appendChild(specRow);
+    }
     
     if (this.isGroupMode) {
       this.groupNames.forEach((groupName, i) => {
@@ -2486,7 +2563,8 @@ const MarbleGameModule = {
         });
       });
     } else {
-      this.connectedClientsList.forEach((c, idx) => {
+      this.connectedClientsList.forEach((c) => {
+        if (c.isSpectator) return;
         this.players.push({
           id: c.slotIdx,
           name: c.nickname,
@@ -2512,7 +2590,7 @@ const MarbleGameModule = {
     this.victoryCondition = victorySelect ? victorySelect.value : "turn_limit";
 
     this.gameMode = "online";
-    this.localPlayerIdx = 0; // Host belongs to Group 0/Slot 0
+    this.localPlayerIdx = this.isSpectatorMode ? -1 : 0;
 
     this.setupBoardWithRandomCountries();
     this.generateBoardTilesInDOM();
@@ -2523,7 +2601,10 @@ const MarbleGameModule = {
       players: this.players,
       boardTiles: this.boardTiles,
       diceCount: this.diceCount,
-      victoryCondition: this.victoryCondition
+      victoryCondition: this.victoryCondition,
+      isGroupMode: this.isGroupMode || false,
+      groupNames: this.groupNames || [],
+      isSpectatorMode: this.isSpectatorMode || false
     });
 
     this.launchGameBoard();
@@ -2565,6 +2646,34 @@ const MarbleGameModule = {
     }
   },
 
+  applyHistoryState(state) {
+    this.players = JSON.parse(JSON.stringify(state.players));
+    this.tileOwners = JSON.parse(JSON.stringify(state.tileOwners));
+    state.boardTilesLevels.forEach((lvl, idx) => {
+      if (this.boardTiles[idx]) {
+        this.boardTiles[idx].buildLevel = lvl;
+      }
+    });
+    this.currentPlayerIdx = state.currentPlayerIdx;
+    this.turnNumber = state.turnNumber;
+    this.doubleStreak = state.doubleStreak;
+    
+    // Clear any active modals
+    clearInterval(this.activeQuizTimer);
+    document.getElementById("modal-purchase-choice").style.display = "none";
+    document.getElementById("modal-upgrade-choice").style.display = "none";
+    document.getElementById("modal-quiz").style.display = "none";
+    document.getElementById("modal-trade").style.display = "none";
+    document.getElementById("modal-chance").style.display = "none";
+    
+    this.logFeed(`◀️ 방장이 게임을 이전 차례로 강제 되돌렸습니다.`, "system");
+    
+    this.updatePawnPositionsOnBoard();
+    this.updatePlayerDashboard();
+    this.renderDynamicBoardTiles();
+    this.startTurnCycle();
+  },
+
   isLocalTurn() {
     if (this.gameMode === "local") return true;
     const activePlayer = this.players[this.currentPlayerIdx];
@@ -2586,6 +2695,11 @@ const MarbleGameModule = {
 
   handleSyncMessage(data) {
     const activePlayer = this.players[this.currentPlayerIdx];
+    
+    if (data.type === "SYNC_ROLLBACK") {
+      this.applyHistoryState(data.state);
+      return;
+    }
     
     if (data.type === "SYNC_ROLL") {
       this.triggerRemoteDiceRoll(data.d1, data.d2);
