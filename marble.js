@@ -346,8 +346,13 @@ const MarbleGameModule = {
     const onlineChoiceGrid = document.getElementById("setup-online-panel") ? document.getElementById("setup-online-panel").querySelector(".online-choice-grid") : null;
     if (onlineChoiceGrid) onlineChoiceGrid.style.display = "grid";
     
-    // Restore host settings visibility on reset
+    // Restore settings visibility
     this.toggleLobbySettingsVisibility(true);
+    
+    // Reset online gameplay states
+    this.gameMode = "local";
+    this.localPlayerIdx = 0;
+    this.pendingJoinData = null;
     
     const pCountSelect = document.getElementById("local-player-count");
     if (pCountSelect) {
@@ -635,7 +640,7 @@ const MarbleGameModule = {
       
       el.addEventListener("click", () => {
         const activePlayer = this.players[this.currentPlayerIdx];
-        if (this.isWarpPending && activePlayer && activePlayer.isHuman) {
+        if (this.isWarpPending && activePlayer && activePlayer.isHuman && this.isLocalTurn()) {
           this.executeWarpTo(index);
         }
       });
@@ -765,22 +770,28 @@ const MarbleGameModule = {
     const diceArea = document.querySelector(".dice-area");
     
     if (activePlayer.isHuman) {
-      // Set active color property
-      document.documentElement.style.setProperty('--active-player-color', activePlayer.color);
-      
-      // Add pulsing highlight to the dice felt area
-      if (diceArea) diceArea.classList.add("active-turn");
-      
-      if (activePlayer.isWarpPending) {
-        this.isWarpPending = true;
-        rollBtn.disabled = true;
-        rollBtn.innerText = "이동할 타일 클릭 🌀";
-        rollBtn.classList.remove("active-turn");
-        this.logFeed(`🌀 워프 활성화! 보드판에서 이동하고 싶은 타일을 직접 클릭하세요.`, "system");
+      if (this.isLocalTurn()) {
+        // Our turn: enable controls!
+        document.documentElement.style.setProperty('--active-player-color', activePlayer.color);
+        if (diceArea) diceArea.classList.add("active-turn");
+        
+        if (activePlayer.isWarpPending) {
+          this.isWarpPending = true;
+          rollBtn.disabled = true;
+          rollBtn.innerText = "이동할 타일 클릭 🌀";
+          rollBtn.classList.remove("active-turn");
+          this.logFeed(`🌀 워프 활성화! 보드판에서 이동하고 싶은 타일을 직접 클릭하세요.`, "system");
+        } else {
+          rollBtn.disabled = false;
+          rollBtn.innerText = "주사위 던지기 🎲";
+          rollBtn.classList.add("active-turn");
+        }
       } else {
-        rollBtn.disabled = false;
-        rollBtn.innerText = "주사위 던지기 🎲";
-        rollBtn.classList.add("active-turn"); // Highlight and bounce button
+        // Remote turn: disable controls!
+        if (diceArea) diceArea.classList.remove("active-turn");
+        rollBtn.classList.remove("active-turn");
+        rollBtn.disabled = true;
+        rollBtn.innerText = `${activePlayer.name} 대원의 탐험 차례 대기 중...`;
       }
     } else {
       // Remove visual highlights during AI turn
@@ -837,6 +848,14 @@ const MarbleGameModule = {
       const d1 = Math.floor(Math.random() * 6) + 1;
       const d2 = (this.diceCount === 2) ? Math.floor(Math.random() * 6) + 1 : 0;
       
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_ROLL",
+          d1: d1,
+          d2: d2
+        });
+      }
+
       // Remove old face classes
       cube1.className = "cube";
       cube2.className = "cube";
@@ -878,13 +897,32 @@ const MarbleGameModule = {
           this.logFeed(`🕳️ 탈출에 실패했습니다! (남은 대기: ${activePlayer.jailTurns}턴)`, "system");
           
           if (activePlayer.money >= 50 && activePlayer.isHuman) {
-            if (confirm("50 마일리지를 수리비로 내고 즉시 출발하시겠습니까?")) {
-              activePlayer.money -= 50;
-              activePlayer.isJailed = false;
-              activePlayer.jailTurns = 0;
-              this.logFeed(`💸 50 마일리지를 신속 지불하여 비상 탈출했습니다.`, "system");
-              this.updatePlayerDashboard();
-              this.movePlayerSteps(totalMoves);
+            if (this.isLocalTurn()) {
+              if (confirm("50 마일리지를 수리비로 내고 즉시 출발하시겠습니까?")) {
+                activePlayer.money -= 50;
+                activePlayer.isJailed = false;
+                activePlayer.jailTurns = 0;
+                
+                if (this.gameMode === "online") {
+                  this.sendNetworkMessage({
+                    type: "SYNC_BERMUDA_PAY",
+                    totalMoves: totalMoves
+                  });
+                }
+                
+                this.logFeed(`💸 50 마일리지를 신속 지불하여 비상 탈출했습니다.`, "system");
+                this.updatePlayerDashboard();
+                this.movePlayerSteps(totalMoves);
+                return;
+              } else {
+                if (this.gameMode === "online") {
+                  this.sendNetworkMessage({
+                    type: "SYNC_BERMUDA_WAIT"
+                  });
+                }
+              }
+            } else {
+              this.logFeed(`⏳ 상대방의 버뮤다 구역 결정을 대기 중입니다...`, "normal");
               return;
             }
           }
@@ -1099,6 +1137,12 @@ const MarbleGameModule = {
     }
 
     const activePlayer = this.players[this.currentPlayerIdx];
+    
+    // Suppress interactive modal on remote turns
+    if (this.gameMode === "online" && !this.isLocalTurn()) {
+      this.logFeed(`⏳ 상대방의 개척지 선택 결정을 대기 중입니다...`, "normal");
+      return;
+    }
 
     document.getElementById("pur-continent-label").innerText = this.getContinentNameKo(tile.continent);
     document.getElementById("pur-country-name").innerText = tile.name;
@@ -1153,6 +1197,14 @@ const MarbleGameModule = {
       activePlayer.money -= tile.price;
       this.tileOwners[tileIdx] = activePlayer.id;
       
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_BUY",
+          tileIdx: tileIdx,
+          playerIdx: activePlayer.id
+        });
+      }
+      
       const stamp = document.getElementById(`owner-stamp-${tileIdx}`);
       if (stamp) {
         stamp.style.backgroundColor = activePlayer.color;
@@ -1173,6 +1225,12 @@ const MarbleGameModule = {
     quizBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_QUIZ_START",
+          tileIdx: tileIdx
+        });
+      }
       this.triggerQuizChallenge(tileIdx);
     };
 
@@ -1180,7 +1238,13 @@ const MarbleGameModule = {
     cancelBtn.onclick = () => {
       cleanupAndClose();
       SoundEffects.playClick();
-      this.logFeed(`🚶 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류하고 패스했습니다.`, "normal");
+      this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_CANCEL",
+          tileIdx: tileIdx
+        });
+      }
       setTimeout(() => this.passTurn(), 1200);
     };
 
@@ -1205,6 +1269,12 @@ const MarbleGameModule = {
     }
 
     const activePlayer = this.players[this.currentPlayerIdx];
+
+    // Suppress upgrade popup on remote turns
+    if (this.gameMode === "online" && !this.isLocalTurn()) {
+      this.logFeed(`⏳ 상대방의 개척지 증축 선택 결정을 대기 중입니다...`, "normal");
+      return;
+    }
     const currentLvl = tile.buildLevel || 0;
 
     // Max level check
@@ -1276,6 +1346,16 @@ const MarbleGameModule = {
       const tollScale = [1, 2, 4.5, 8];
       const nextToll = Math.round(tile.toll * tollScale[nextLvl]);
       
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_UPGRADE",
+          tileIdx: tileIdx,
+          playerIdx: activePlayer.id,
+          nextLvl: nextLvl,
+          cost: upgradeCost
+        });
+      }
+      
       this.logFeed(`🏢 ${activePlayer.name} 대원이 [${tile.name}]에 [${levelsKo[nextLvl]}]을(를) 증축했습니다! (비용: ${upgradeCost}M, 새 통행료: ${nextToll}M)`, "system");
       this.renderDynamicBoardTiles();
       this.updatePlayerDashboard();
@@ -1289,6 +1369,14 @@ const MarbleGameModule = {
         tileIdx: tileIdx,
         nextLvl: nextLvl
       };
+      
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_QUIZ_START",
+          tileIdx: tileIdx
+        });
+      }
+      
       this.triggerQuizChallenge(tileIdx);
     };
 
@@ -1296,6 +1384,13 @@ const MarbleGameModule = {
       cleanupAndClose();
       SoundEffects.playClick();
       this.logFeed(`🚶 ${activePlayer.name} 대원이 [${tile.name}]의 증축을 보류했습니다.`, "normal");
+      
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_CANCEL",
+          tileIdx: tileIdx
+        });
+      }
       setTimeout(() => this.passTurn(), 1200);
     };
 
@@ -1377,6 +1472,17 @@ const MarbleGameModule = {
         this.activeQuizUpgrade = null;
         this.logFeed(`⌛ 퀴즈 제한 시간을 초과했습니다.`, "quiz-wrong");
         modal.style.display = "none";
+        
+        if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+          this.sendNetworkMessage({
+            type: "SYNC_QUIZ_RESULT",
+            tileIdx: tileIdx,
+            isCorrect: false,
+            isUpgrade: false,
+            nextLvl: 0
+          });
+        }
+        
         this.passTurn();
       }
     }, 1000);
@@ -1511,6 +1617,17 @@ const MarbleGameModule = {
     
     const isCorrect = choiceIdx === quiz.ans;
     
+    // Broadcast quiz result to remote players
+    if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+      this.sendNetworkMessage({
+        type: "SYNC_QUIZ_RESULT",
+        tileIdx: this.activeQuiz.tileIdx,
+        isCorrect: isCorrect,
+        isUpgrade: !!this.activeQuizUpgrade,
+        nextLvl: this.activeQuizUpgrade ? this.activeQuizUpgrade.nextLvl : 0
+      });
+    }
+    
     if (isCorrect) {
       SoundEffects.playCorrect();
       buttons[choiceIdx].classList.add("correct-choice");
@@ -1596,6 +1713,12 @@ const MarbleGameModule = {
     const tollScale = [1, 2, 4.5, 8];
     const actualToll = Math.round(tile.toll * tollScale[level]);
 
+    if (this.gameMode === "online" && !this.isLocalTurn()) {
+      // Remote player landing: just log and wait for SYNC_TOLL
+      this.logFeed(`⏳ ${visitor.name} 대원의 통행료 지불 결정을 대기 중입니다...`, "normal");
+      return;
+    }
+
     document.getElementById("trade-visitor").innerText = visitor.name;
     document.getElementById("trade-owner").innerText = owner.name;
     document.getElementById("trade-country").innerText = tile.name;
@@ -1611,6 +1734,15 @@ const MarbleGameModule = {
       
       visitor.money -= actualToll;
       owner.money += actualToll;
+      
+      if (this.gameMode === "online") {
+        this.sendNetworkMessage({
+          type: "SYNC_TOLL",
+          actualToll: actualToll,
+          visitorId: visitor.id,
+          ownerId: owner.id
+        });
+      }
       
       this.logFeed(`💸 ${visitor.name} 대원이 ${owner.name} 대원의 영토에 입국하여 통행료 ${actualToll}M을 납부했습니다.`, "system");
       
@@ -1637,11 +1769,27 @@ const MarbleGameModule = {
     }
   },
 
-  // 2.8. Chance Cards Trigger
   triggerChanceCardEvent() {
+    const activePlayer = this.players[this.currentPlayerIdx];
+    if (this.gameMode === "online" && !this.isLocalTurn()) {
+      this.logFeed(`⏳ ${activePlayer.name} 대원의 탐험 카드 결정을 대기 중입니다...`, "normal");
+      return;
+    }
+
     const deckIdx = Math.floor(Math.random() * MARBLE_CHANCE_CARDS.length);
-    const card = MARBLE_CHANCE_CARDS[deckIdx];
     
+    if (this.gameMode === "online") {
+      this.sendNetworkMessage({
+        type: "SYNC_CHANCE",
+        deckIdx: deckIdx
+      });
+    }
+
+    this.showChanceCardAnimationAndApply(deckIdx);
+  },
+
+  showChanceCardAnimationAndApply(deckIdx) {
+    const card = MARBLE_CHANCE_CARDS[deckIdx];
     const modal = document.getElementById("modal-chance");
     const front = modal.querySelector(".card-front");
     const back = modal.querySelector(".card-back-design");
@@ -1670,7 +1818,8 @@ const MarbleGameModule = {
     };
 
     const activePlayer = this.players[this.currentPlayerIdx];
-    if (!activePlayer.isHuman) {
+    // Remote client screens auto-close after 3.5s so players don't get stuck
+    if (!this.isLocalTurn() || !activePlayer.isHuman) {
       setTimeout(() => newCloseBtn.click(), 3500);
     }
   },
@@ -1728,6 +1877,13 @@ const MarbleGameModule = {
       this.updatePlayerDashboard();
     }
     
+    if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+      this.sendNetworkMessage({
+        type: "SYNC_WARP",
+        tileIdx: tileIdx
+      });
+    }
+
     this.updatePawnPositionsOnBoard();
     setTimeout(() => this.handleTileArrival(), 800);
   },
@@ -2029,6 +2185,11 @@ const MarbleGameModule = {
   },
 
   handleHostNetworkData(conn, data) {
+    if (data.type && data.type.startsWith("SYNC_")) {
+      this.broadcastToClients(data);
+      this.handleSyncMessage(data);
+      return;
+    }
     if (data.type === "JOIN_SUBMIT") {
       const activeCount = this.connectedClientsList.length;
       if (activeCount >= 4) {
@@ -2055,6 +2216,10 @@ const MarbleGameModule = {
   },
 
   handleClientNetworkData(data) {
+    if (data.type && data.type.startsWith("SYNC_")) {
+      this.handleSyncMessage(data);
+      return;
+    }
     if (data.type === "REJECT") {
       alert(`거부됨: ${data.reason}`);
       this.resetToSetup();
@@ -2072,6 +2237,14 @@ const MarbleGameModule = {
         this.victoryCondition = data.victoryCondition;
         this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
         
+        // Identify local player index on client device
+        this.gameMode = "online";
+        this.localPlayerIdx = 1; // Fallback
+        const myClientInfo = this.connectedClientsList.find(c => c.peerId === this.peer.id);
+        if (myClientInfo) {
+          this.localPlayerIdx = myClientInfo.slotIdx;
+        }
+
         this.generateBoardTilesInDOM();
         this.renderDynamicBoardTiles();
         this.launchGameBoard();
@@ -2198,6 +2371,183 @@ const MarbleGameModule = {
       // 4. Connect to host in the background
       this.initClientPeer(roomParam);
     }
+  },
+
+  isLocalTurn() {
+    if (this.gameMode === "local") return true;
+    return this.currentPlayerIdx === this.localPlayerIdx;
+  },
+
+  sendNetworkMessage(data) {
+    if (this.isHost) {
+      this.broadcastToClients(data);
+    } else if (this.conn && this.conn.open) {
+      this.conn.send(data);
+    }
+  },
+
+  handleSyncMessage(data) {
+    const activePlayer = this.players[this.currentPlayerIdx];
+    
+    if (data.type === "SYNC_ROLL") {
+      this.triggerRemoteDiceRoll(data.d1, data.d2);
+    }
+    
+    if (data.type === "SYNC_BUY") {
+      const tile = this.boardTiles[data.tileIdx];
+      activePlayer.money -= tile.price;
+      this.tileOwners[data.tileIdx] = data.playerIdx;
+      
+      const stamp = document.getElementById(`owner-stamp-${data.tileIdx}`);
+      if (stamp) {
+        stamp.style.backgroundColor = activePlayer.color;
+        stamp.style.borderColor = "#ffffff";
+        stamp.style.display = "block";
+      }
+      
+      this.logFeed(`🏠 ${activePlayer.name} 대원이 [${tile.name}]을(를) 구매 개척했습니다.`, "system");
+      this.updatePlayerDashboard();
+      this.renderDynamicBoardTiles();
+      setTimeout(() => this.passTurn(), 1200);
+    }
+    
+    if (data.type === "SYNC_CANCEL") {
+      const tile = this.boardTiles[data.tileIdx];
+      this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
+      setTimeout(() => this.passTurn(), 1200);
+    }
+
+    if (data.type === "SYNC_QUIZ_START") {
+      this.logFeed(`📝 ${activePlayer.name} 대원이 지리 퀴즈 도전을 시작했습니다...`, "system");
+    }
+    
+    if (data.type === "SYNC_QUIZ_RESULT") {
+      const tile = this.boardTiles[data.tileIdx];
+      if (data.isCorrect) {
+        SoundEffects.playCorrect();
+        if (data.isUpgrade) {
+          tile.buildLevel = data.nextLvl;
+        } else {
+          this.tileOwners[data.tileIdx] = activePlayer.id;
+          tile.buildLevel = 0;
+        }
+        this.logFeed(`🎯 정답! ${activePlayer.name} 대원이 지리 퀴즈를 맞추어 [${tile.name}]을(를) 무료 획득/증축했습니다!`, "quiz-correct");
+      } else {
+        SoundEffects.playWrong();
+        this.logFeed(`❌ 오답! ${activePlayer.name} 대원이 퀴즈 해결에 실패했습니다.`, "quiz-wrong");
+      }
+      this.updatePlayerDashboard();
+      this.renderDynamicBoardTiles();
+      setTimeout(() => this.passTurn(), 1500);
+    }
+
+    if (data.type === "SYNC_UPGRADE") {
+      const tile = this.boardTiles[data.tileIdx];
+      activePlayer.money -= data.cost;
+      tile.buildLevel = data.nextLvl;
+      const levelsKo = ["대지", "별장", "빌딩", "호텔"];
+      const tollScale = [1, 2, 4.5, 8];
+      const nextToll = Math.round(tile.toll * tollScale[data.nextLvl]);
+      
+      this.logFeed(`🏢 ${activePlayer.name} 대원이 [${tile.name}]에 [${levelsKo[data.nextLvl]}]을(를) 증축했습니다! (비용: ${data.cost}M, 새 통행료: ${nextToll}M)`, "system");
+      this.updatePlayerDashboard();
+      this.renderDynamicBoardTiles();
+      setTimeout(() => this.passTurn(), 1200);
+    }
+    
+    if (data.type === "SYNC_CHANCE") {
+      this.showChanceCardAnimationAndApply(data.deckIdx);
+    }
+    
+    if (data.type === "SYNC_WARP") {
+      activePlayer.isWarpPending = false;
+      this.isWarpPending = false;
+      activePlayer.position = data.tileIdx;
+      this.logFeed(`🌀 워프 성공! [${this.boardTiles[data.tileIdx].name}] 국가로 긴급 공간 비행 수송되었습니다.`, "system");
+      
+      if (data.tileIdx === 0) {
+        activePlayer.money += 100;
+        this.logFeed(`🛫 세계 공항 경유! 보너스 탐험 지원금 100M 지급 완료.`, "system");
+      }
+      
+      this.updatePawnPositionsOnBoard();
+      this.updatePlayerDashboard();
+      setTimeout(() => this.handleTileArrival(), 800);
+    }
+    
+    if (data.type === "SYNC_TOLL") {
+      const visitor = this.players[data.visitorId];
+      const owner = this.players[data.ownerId];
+      visitor.money -= data.actualToll;
+      owner.money += data.actualToll;
+      
+      this.logFeed(`💸 ${visitor.name} 대원이 ${owner.name} 대원의 영토에 입국하여 통행료 ${data.actualToll}M을 납부했습니다.`, "system");
+      
+      if (visitor.money < 0) {
+        visitor.isBankrupt = true;
+        this.logFeed(`💀 ${visitor.name} 대원이 지불 불능으로 탐험 중도 파산했습니다!`, "quiz-wrong");
+        Object.entries(this.tileOwners).forEach(([tIdx, pId]) => {
+          if (pId === visitor.id) {
+            delete this.tileOwners[tIdx];
+            const stamp = document.getElementById(`owner-stamp-${tIdx}`);
+            if (stamp) stamp.style.display = "none";
+          }
+        });
+      }
+      this.updatePlayerDashboard();
+      this.renderDynamicBoardTiles();
+      setTimeout(() => this.passTurn(), 1200);
+    }
+    
+    if (data.type === "SYNC_BERMUDA_PAY") {
+      activePlayer.money -= 50;
+      activePlayer.isJailed = false;
+      activePlayer.jailTurns = 0;
+      this.logFeed(`💸 50 마일리지를 신속 지불하여 비상 탈출했습니다.`, "system");
+      this.updatePlayerDashboard();
+      this.movePlayerSteps(data.totalMoves);
+    }
+    
+    if (data.type === "SYNC_BERMUDA_WAIT") {
+      this.logFeed(`🕳️ 탈출에 실패했습니다! (남은 대기: ${activePlayer.jailTurns}턴)`, "system");
+      setTimeout(() => this.passTurn(), 1200);
+    }
+  },
+
+  triggerRemoteDiceRoll(d1, d2) {
+    if (this.isRolling) return;
+    this.isRolling = true;
+    
+    const rollBtn = document.getElementById("btn-roll-dice");
+    if (rollBtn) {
+      rollBtn.disabled = true;
+      rollBtn.classList.remove("active-turn");
+    }
+    const diceArea = document.querySelector(".dice-area");
+    if (diceArea) diceArea.classList.remove("active-turn");
+    
+    const cube1 = document.getElementById("cube-element-1");
+    const cube2 = document.getElementById("cube-element-2");
+    
+    if (cube1) cube1.classList.add("spinning");
+    if (cube2 && this.diceCount === 2) cube2.classList.add("spinning");
+    
+    SoundEffects.playDiceRoll();
+    
+    setTimeout(() => {
+      if (cube1) cube1.classList.remove("spinning");
+      if (cube2) cube2.classList.remove("spinning");
+      
+      // Remove old face classes
+      if (cube1) cube1.className = "cube";
+      if (cube2) cube2.className = "cube";
+      
+      // Apply face rotations
+      if (cube1) cube1.classList.add(`show-${d1}`);
+      if (cube2 && this.diceCount === 2) cube2.classList.add(`show-${d2}`);
+      
+      setTimeout(() => this.processDiceResult(d1, d2), 600);
+    }, 1200);
   }
 };
 
