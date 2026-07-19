@@ -412,6 +412,34 @@ const MarbleGameModule = {
     });
 
     document.getElementById("btn-generate-room").addEventListener("click", () => this.initHostPeer());
+    
+    // Copy link click handler
+    const copyBtn = document.getElementById("btn-copy-link");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        const linkVal = document.getElementById("share-link-input").value;
+        if (linkVal) {
+          navigator.clipboard.writeText(linkVal).then(() => {
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = "✅ 복사 완료!";
+            copyBtn.style.backgroundColor = "#22c55e";
+            copyBtn.style.borderColor = "#22c55e";
+            setTimeout(() => {
+              copyBtn.innerHTML = originalText;
+              copyBtn.style.backgroundColor = "";
+              copyBtn.style.borderColor = "";
+            }, 2000);
+          }).catch(err => {
+            console.error("Clipboard copy failed:", err);
+            const input = document.getElementById("share-link-input");
+            input.select();
+            document.execCommand("copy");
+            alert("링크가 복사되었습니다!");
+          });
+        }
+      });
+    }
+
     document.getElementById("btn-connect-join").addEventListener("click", () => {
       const roomVal = document.getElementById("online-join-room-id").value.trim();
       let rId = roomVal;
