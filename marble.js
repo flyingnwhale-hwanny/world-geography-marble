@@ -2404,7 +2404,7 @@ const MarbleGameModule = {
     const container = document.getElementById("host-slots-container");
     container.innerHTML = "";
     
-    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff"];
+    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff", "#10b981", "#f97316", "#ec4899", "#a855f7"];
     
     if (this.isGroupMode) {
       this.groupNames.forEach((groupName, i) => {
@@ -2416,7 +2416,7 @@ const MarbleGameModule = {
         const memberDesc = members.length > 0 ? `(${members.length}명: ${memberList})` : "(비어있음)";
         
         row.innerHTML = `
-          <span class="slot-name" style="color: ${colors[i % 4]}">👥 [${groupName}] 모둠</span>
+          <span class="slot-name" style="color: ${colors[i % 8]}">👥 [${groupName}] 모둠</span>
           <span class="slot-status ready">${memberDesc}</span>
         `;
         container.appendChild(row);
@@ -2429,7 +2429,7 @@ const MarbleGameModule = {
         
         if (occupant) {
           row.innerHTML = `
-            <span class="slot-name" style="color: ${colors[i]}">🛸 ${occupant.nickname}</span>
+            <span class="slot-name" style="color: ${colors[i % 8]}">🛸 ${occupant.nickname}</span>
             <span class="slot-status ready">${occupant.isHost ? "대장방장" : "대원준비"}</span>
           `;
         } else {
@@ -2458,8 +2458,8 @@ const MarbleGameModule = {
 
   startOnlineGameBroadcast() {
     this.players = [];
-    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff"];
-    const avatars = ["✈️", "🚢", "🚂", "🚗"];
+    const colors = ["#ff3366", "#33ccff", "#ffcc00", "#cc33ff", "#10b981", "#f97316", "#ec4899", "#a855f7"];
+    const avatars = ["✈️", "🚢", "🚂", "🚗", "🚁", "🚲", "🚀", "🛸"];
     
     // Read game mode from DOM
     const gameModeSelect = document.getElementById("online-game-mode");
@@ -2473,8 +2473,8 @@ const MarbleGameModule = {
         this.players.push({
           id: idx,
           name: gName,
-          color: colors[idx % 4],
-          avatar: avatars[idx % 4],
+          color: colors[idx % 8],
+          avatar: avatars[idx % 8],
           isHuman: true,
           money: 1000,
           position: 0,
@@ -2490,8 +2490,8 @@ const MarbleGameModule = {
         this.players.push({
           id: c.slotIdx,
           name: c.nickname,
-          color: colors[c.slotIdx],
-          avatar: avatars[c.slotIdx],
+          color: colors[c.slotIdx % 8],
+          avatar: avatars[c.slotIdx % 8],
           isHuman: true,
           money: 1000,
           position: 0,
