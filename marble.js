@@ -450,8 +450,47 @@ const MarbleGameModule = {
         alert("올바른 방 ID나 초대 링크 주소를 입력하세요.");
         return;
       }
-      this.initClientPeer(rId);
     });
+
+    // Join submit (Client side)
+    const btnSubmitJoin = document.getElementById("btn-submit-join");
+    if (btnSubmitJoin) {
+      btnSubmitJoin.addEventListener("click", () => {
+        const nickname = document.getElementById("online-join-nickname").value.trim();
+        if (!nickname) {
+          alert("닉네임을 입력해 주세요.");
+          return;
+        }
+        
+        const slotIdx = parseInt(document.getElementById("online-join-slot").value);
+        
+        if (this.conn && this.conn.open) {
+          this.conn.send({
+            type: "JOIN_SUBMIT",
+            nickname: nickname,
+            teamIdx: slotIdx
+          });
+          
+          this.logFeed(`📡 탑승 신청 전송: ${nickname} (좌석 ${slotIdx + 1})`, "system");
+          document.getElementById("modal-online-join").style.display = "none";
+        } else {
+          alert("호스트와 연결이 유효하지 않습니다. 다시 시도해 주세요.");
+        }
+      });
+    }
+
+    // Join cancel (Client side)
+    const btnCancelJoin = document.getElementById("btn-cancel-join");
+    if (btnCancelJoin) {
+      btnCancelJoin.addEventListener("click", () => {
+        document.getElementById("modal-online-join").style.display = "none";
+        if (this.peer) {
+          try { this.peer.destroy(); } catch(e) {}
+          this.peer = null;
+        }
+        this.resetToSetup();
+      });
+    }
 
     document.getElementById("btn-start-online").addEventListener("click", () => this.startOnlineGameBroadcast());
   },
@@ -1936,6 +1975,7 @@ const MarbleGameModule = {
     }
     if (data.type === "SLOTS_UPDATE") {
       this.connectedClientsList = data.list;
+      this.updateHostSlotsUI();
     }
     if (data.type === "GAME_START") {
       this.players = data.players;
@@ -1973,7 +2013,18 @@ const MarbleGameModule = {
       }
       container.appendChild(row);
     }
-    document.getElementById("btn-start-online").disabled = this.connectedClientsList.length < 2;
+    const startBtn = document.getElementById("btn-start-online");
+    if (startBtn) {
+      if (this.isHost) {
+        startBtn.style.display = "block";
+        startBtn.disabled = this.connectedClientsList.length < 2;
+        startBtn.innerText = "모든 대원 준비 완료 - 게임 시작! 🚀";
+      } else {
+        startBtn.style.display = "block";
+        startBtn.disabled = true;
+        startBtn.innerText = "🚀 방장이 게임을 시작하기를 대기하고 있습니다...";
+      }
+    }
   },
 
   startOnlineGameBroadcast() {
