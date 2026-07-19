@@ -819,6 +819,9 @@ const MarbleGameModule = {
       }
     }
 
+    // Update left player status cards dashboard to refresh the active turn highlight border!
+    this.updatePlayerDashboard();
+
     const activePlayer = this.players[this.currentPlayerIdx];
     
     if (activePlayer.isBankrupt) {
