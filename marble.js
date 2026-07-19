@@ -474,7 +474,10 @@ const MarbleGameModule = {
           this.logFeed(`📡 탑승 신청 전송: ${nickname} (좌석 ${slotIdx + 1})`, "system");
           document.getElementById("modal-online-join").style.display = "none";
         } else {
-          alert("호스트와 연결이 유효하지 않습니다. 다시 시도해 주세요.");
+          // Connection still starting: show feedback and submit automatically once connected
+          btnSubmitJoin.disabled = true;
+          btnSubmitJoin.innerText = "🚀 우주선 접속 중...";
+          this.pendingJoinData = { nickname, teamIdx: slotIdx };
         }
       });
     }
@@ -1932,7 +1935,26 @@ const MarbleGameModule = {
 
       conn.on("open", () => {
         this.logFeed(`🔌 대기실 연결 성공.`, "system");
-        document.getElementById("modal-online-join").style.display = "flex";
+        
+        // Auto-submit if the user filled their details beforehand
+        if (this.pendingJoinData) {
+          this.conn.send({
+            type: "JOIN_SUBMIT",
+            nickname: this.pendingJoinData.nickname,
+            teamIdx: this.pendingJoinData.teamIdx
+          });
+          this.logFeed(`📡 탑승 신청 전송: ${this.pendingJoinData.nickname} (좌석 ${this.pendingJoinData.teamIdx + 1})`, "system");
+          this.pendingJoinData = null;
+          
+          const btn = document.getElementById("btn-submit-join");
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "탐험대 탑승";
+          }
+          document.getElementById("modal-online-join").style.display = "none";
+        } else {
+          document.getElementById("modal-online-join").style.display = "flex";
+        }
       });
 
       conn.on("data", (data) => this.handleClientNetworkData(data));
@@ -2083,19 +2105,11 @@ const MarbleGameModule = {
       const tabOnline = document.getElementById("setup-tab-online");
       if (tabOnline) tabOnline.click();
       
-      // 3. Show join sub-panel
-      const btnChoiceJoin = document.getElementById("btn-choice-join");
-      if (btnChoiceJoin) btnChoiceJoin.click();
+      // 3. Immediately show nickname entry modal, bypassing search screen
+      document.getElementById("modal-online-join").style.display = "flex";
       
-      // 4. Fill in room ID
-      const roomIdInput = document.getElementById("online-join-room-id");
-      if (roomIdInput) roomIdInput.value = roomParam;
-      
-      // 5. Auto-trigger connection search after a short stabilizer delay
-      setTimeout(() => {
-        const connectBtn = document.getElementById("btn-connect-join");
-        if (connectBtn) connectBtn.click();
-      }, 600);
+      // 4. Connect to host in the background
+      this.initClientPeer(roomParam);
     }
   }
 };
