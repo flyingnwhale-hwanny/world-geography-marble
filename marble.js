@@ -756,7 +756,9 @@ const MarbleGameModule = {
     const activePlayer = this.players[this.currentPlayerIdx];
     
     if (activePlayer.isBankrupt) {
-      this.passTurn();
+      if (this.isLocalTurn() || this.isHost) {
+        this.passTurn();
+      }
       return;
     }
 
@@ -805,7 +807,9 @@ const MarbleGameModule = {
         rollBtn.disabled = true;
         rollBtn.innerText = "🤖 AI 주행 중...";
       }
-      setTimeout(() => this.runAIPlayerLogic(), 1500);
+      if (this.gameMode === "local" || this.isHost) {
+        setTimeout(() => this.runAIPlayerLogic(), 1500);
+      }
     }
   },
 
@@ -1061,7 +1065,9 @@ const MarbleGameModule = {
 
     if (tile.type === "start") {
       SoundEffects.playSpecial();
-      setTimeout(() => this.passTurn(), 1200);
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
       return;
     }
     
@@ -1069,7 +1075,9 @@ const MarbleGameModule = {
       SoundEffects.playSpecial();
       this.logFeed(`🌀 워프 비행 게이트 활성화! 다음 턴에 원하는 국가로 무제한 즉시 비행합니다!`, "system");
       activePlayer.isWarpPending = true;
-      setTimeout(() => this.passTurn(), 1500);
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1500);
+      }
       return;
     }
     
@@ -1084,7 +1092,9 @@ const MarbleGameModule = {
         activePlayer.hasExemption = false;
         this.logFeed(`🛡️ 외교관 비자 카드를 사용해 통신 마비를 자동 무력화합니다!`, "system");
       }
-      setTimeout(() => this.passTurn(), 1500);
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1500);
+      }
       return;
     }
     
@@ -1093,7 +1103,9 @@ const MarbleGameModule = {
       activePlayer.money += 150;
       this.logFeed(`🎉 세계 문화 축제 참가 보조금 150M 획득 완료!`, "system");
       this.updatePlayerDashboard();
-      setTimeout(() => this.passTurn(), 1200);
+      if (this.isLocalTurn()) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
       return;
     }
 
@@ -1120,7 +1132,9 @@ const MarbleGameModule = {
         if (activePlayer.hasFTA) {
           activePlayer.hasFTA = false;
           this.logFeed(`🛡️ FTA 협정 면제 카드를 발급받아 통행료 지불을 1회 패스합니다!`, "system");
-          setTimeout(() => this.passTurn(), 1500);
+          if (this.isLocalTurn()) {
+            setTimeout(() => this.passTurn(), 1500);
+          }
         } else {
           this.executeTradeFeePayment(activePlayer, owner, tile);
         }
@@ -1132,7 +1146,9 @@ const MarbleGameModule = {
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) {
-      this.passTurn();
+      if (this.isLocalTurn()) {
+        this.passTurn();
+      }
       return;
     }
 
@@ -1264,7 +1280,9 @@ const MarbleGameModule = {
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) {
-      this.passTurn();
+      if (this.isLocalTurn()) {
+        this.passTurn();
+      }
       return;
     }
 
@@ -1410,7 +1428,9 @@ const MarbleGameModule = {
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) {
-      this.passTurn();
+      if (this.isLocalTurn()) {
+        this.passTurn();
+      }
       return;
     }
 
@@ -1915,12 +1935,29 @@ const MarbleGameModule = {
     
     // If not double, pass turn. If double and doubleStreak > 0, do not pass!
     if (this.doubleStreak > 0) {
+      if (this.gameMode === "online" && this.isLocalTurn()) {
+        this.sendNetworkMessage({
+          type: "SYNC_PASS_TURN",
+          nextPlayerIdx: this.currentPlayerIdx,
+          doubleStreak: this.doubleStreak
+        });
+      }
       this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
       this.startTurnCycle();
       return;
     }
 
-    this.currentPlayerIdx = (this.currentPlayerIdx + 1) % this.players.length;
+    const nextIdx = (this.currentPlayerIdx + 1) % this.players.length;
+    
+    if (this.gameMode === "online" && this.isLocalTurn()) {
+      this.sendNetworkMessage({
+        type: "SYNC_PASS_TURN",
+        nextPlayerIdx: nextIdx,
+        doubleStreak: 0
+      });
+    }
+
+    this.currentPlayerIdx = nextIdx;
     if (this.currentPlayerIdx === 0) {
       this.turnNumber++;
     }
@@ -2375,6 +2412,12 @@ const MarbleGameModule = {
 
   isLocalTurn() {
     if (this.gameMode === "local") return true;
+    const activePlayer = this.players[this.currentPlayerIdx];
+    if (!activePlayer) return false;
+    
+    // Host owns and triggers moves/actions for AI players
+    if (this.isHost && !activePlayer.isHuman) return true;
+    
     return this.currentPlayerIdx === this.localPlayerIdx;
   },
 
@@ -2408,13 +2451,11 @@ const MarbleGameModule = {
       this.logFeed(`🏠 ${activePlayer.name} 대원이 [${tile.name}]을(를) 구매 개척했습니다.`, "system");
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
-      setTimeout(() => this.passTurn(), 1200);
     }
     
     if (data.type === "SYNC_CANCEL") {
       const tile = this.boardTiles[data.tileIdx];
       this.logFeed(`🍃 ${activePlayer.name} 대원이 [${tile.name}] 개척을 보류했습니다.`, "normal");
-      setTimeout(() => this.passTurn(), 1200);
     }
 
     if (data.type === "SYNC_QUIZ_START") {
@@ -2438,7 +2479,6 @@ const MarbleGameModule = {
       }
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
-      setTimeout(() => this.passTurn(), 1500);
     }
 
     if (data.type === "SYNC_UPGRADE") {
@@ -2452,7 +2492,6 @@ const MarbleGameModule = {
       this.logFeed(`🏢 ${activePlayer.name} 대원이 [${tile.name}]에 [${levelsKo[data.nextLvl]}]을(를) 증축했습니다! (비용: ${data.cost}M, 새 통행료: ${nextToll}M)`, "system");
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
-      setTimeout(() => this.passTurn(), 1200);
     }
     
     if (data.type === "SYNC_CHANCE") {
@@ -2496,7 +2535,6 @@ const MarbleGameModule = {
       }
       this.updatePlayerDashboard();
       this.renderDynamicBoardTiles();
-      setTimeout(() => this.passTurn(), 1200);
     }
     
     if (data.type === "SYNC_BERMUDA_PAY") {
@@ -2510,7 +2548,30 @@ const MarbleGameModule = {
     
     if (data.type === "SYNC_BERMUDA_WAIT") {
       this.logFeed(`🕳️ 탈출에 실패했습니다! (남은 대기: ${activePlayer.jailTurns}턴)`, "system");
-      setTimeout(() => this.passTurn(), 1200);
+    }
+
+    if (data.type === "SYNC_PASS_TURN") {
+      this.doubleStreak = data.doubleStreak || 0;
+      
+      const prevIdx = this.currentPlayerIdx;
+      this.currentPlayerIdx = data.nextPlayerIdx;
+      
+      if (prevIdx !== this.currentPlayerIdx && this.currentPlayerIdx === 0) {
+        this.turnNumber++;
+      }
+      
+      if (this.doubleStreak > 0) {
+        this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
+      }
+      
+      // Safety auto-dismiss active modals to keep layouts in sync
+      document.getElementById("modal-purchase-choice").style.display = "none";
+      document.getElementById("modal-upgrade-choice").style.display = "none";
+      document.getElementById("modal-quiz").style.display = "none";
+      document.getElementById("modal-trade").style.display = "none";
+      document.getElementById("modal-chance").style.display = "none";
+      
+      this.startTurnCycle();
     }
   },
 
