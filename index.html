@@ -248,6 +248,10 @@
                   <p>아래 링크를 복사하여 친구들에게 공유하세요!</p>
                   <input type="text" id="share-link-input" readonly>
                   <button class="btn-small" id="btn-copy-link">📋 복사</button>
+                  <div class="qr-code-wrapper" style="margin-top: 15px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                    <p style="font-size: 11px; color: var(--text-muted); margin: 0;">또는 아래 QR 코드를 화면 공유하여 스캔하도록 하세요!</p>
+                    <div id="room-qr-code" style="padding: 10px; background: white; border-radius: 8px; width: fit-content; display: inline-block;"></div>
+                  </div>
                 </div>
               </div>
               <div class="online-slots-list" id="host-slots-container">

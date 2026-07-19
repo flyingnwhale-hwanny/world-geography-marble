@@ -1823,6 +1823,12 @@ const MarbleGameModule = {
       document.getElementById("share-link-input").value = link;
       document.getElementById("room-link-box").style.display = "block";
       
+      // Render QR Code for instant classroom mobile scans
+      const qrEl = document.getElementById("room-qr-code");
+      if (qrEl) {
+        qrEl.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}" alt="QR Code" style="display: block; width: 150px; height: 150px; image-rendering: pixelated;">`;
+      }
+      
       this.connectedClientsList = [{
         peerId: id,
         nickname: nickname,
@@ -1833,6 +1839,12 @@ const MarbleGameModule = {
       
       this.logFeed(`📡 온라인 방 생성 완료! 방 ID: ${id}`, "system");
       unlockBadge("online_veteran");
+    });
+
+    this.peer.on("error", (err) => {
+      console.error("PeerJS Error:", err);
+      this.logFeed(`❌ 연결 오류: ${err.type}`, "system");
+      alert(`온라인 연결 서버와의 통신에 실패했습니다.\n오류 유형: ${err.type}\n\n*학교/기관의 강력한 네트워크 방화벽이 PeerJS 공용 중계 서버(0.peerjs.com)를 차단했거나 공용 서버의 일시적인 혼잡 상황일 수 있습니다.\n\n해결 방법:\n1. 개인 모바일 핫스팟/데이터 네트워크 테더링을 사용하여 시도해보세요.\n2. 온라인 플레이가 차단된 경우, '한 화면 플레이(로컬)' 룰로 시작해주세요.`);
     });
 
     this.peer.on("connection", (conn) => {
@@ -1857,6 +1869,12 @@ const MarbleGameModule = {
       });
 
       conn.on("data", (data) => this.handleClientNetworkData(data));
+    });
+
+    this.peer.on("error", (err) => {
+      console.error("PeerJS Error:", err);
+      this.logFeed(`❌ 연결 오류: ${err.type}`, "system");
+      alert(`방 참가 도중 온라인 연결 오류가 발생했습니다.\n오류 유형: ${err.type}\n\n*방 ID가 틀렸거나, 방장이 이미 나갔거나, 네트워크 방화벽이 차단 중일 수 있습니다.`);
     });
   },
 
