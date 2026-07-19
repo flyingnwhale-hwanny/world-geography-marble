@@ -234,7 +234,7 @@ const CONTINENT_SVG_SHAPES = {
 
 // Precise centroid coordinates in amCharts projection coordinate space
 const COUNTRY_MAP_COORDS = {
-  japan: { x: 860.7, y: 346.4 },
+  japan: { x: 861.2, y: 355.8 },
   china: { x: 767.8, y: 349.0 },
   india: { x: 707.4, y: 399.3 },
   saudi: { x: 601.8, y: 392.9 },
