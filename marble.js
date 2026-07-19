@@ -2359,6 +2359,9 @@ const MarbleGameModule = {
     const victorySelect = document.getElementById("online-victory-rule");
     this.victoryCondition = victorySelect ? victorySelect.value : "turn_limit";
 
+    this.gameMode = "online";
+    this.localPlayerIdx = 0; // Host is slot 0
+
     this.setupBoardWithRandomCountries();
     this.generateBoardTilesInDOM();
     this.renderDynamicBoardTiles();
