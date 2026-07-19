@@ -1934,9 +1934,17 @@ const MarbleGameModule = {
 
     this.peer.on("connection", (conn) => {
       conn.on("open", () => {
-        this.conns.push(conn);
+        if (!this.conns.includes(conn)) {
+          this.conns.push(conn);
+        }
         conn.on("data", (data) => this.handleHostNetworkData(conn, data));
       });
+    });
+
+    // Auto-reconnect to signaling server if disconnected
+    this.peer.on("disconnected", () => {
+      this.logFeed("📡 중계 서버 연결이 일시 차단되었습니다. 재연결을 시도합니다...", "system");
+      this.peer.reconnect();
     });
   },
 
@@ -1985,12 +1993,38 @@ const MarbleGameModule = {
       });
 
       conn.on("data", (data) => this.handleClientNetworkData(data));
+      
+      conn.on("close", () => {
+        this.logFeed(`🔌 대기실 연결이 닫혔습니다.`, "system");
+        const startBtn = document.getElementById("btn-start-online");
+        if (startBtn) {
+          startBtn.disabled = true;
+          startBtn.innerText = "❌ 연결이 종료되었습니다. 새로고침하여 다시 연결하세요.";
+          startBtn.style.backgroundColor = "#ef4444";
+        }
+      });
+
+      conn.on("error", (err) => {
+        console.error("Connection error:", err);
+        const startBtn = document.getElementById("btn-start-online");
+        if (startBtn) {
+          startBtn.disabled = true;
+          startBtn.innerText = "❌ 연결 오류 발생. 새로고침해 주세요.";
+          startBtn.style.backgroundColor = "#ef4444";
+        }
+      });
     });
 
     this.peer.on("error", (err) => {
       console.error("PeerJS Error:", err);
       this.logFeed(`❌ 연결 오류: ${err.type}`, "system");
       alert(`방 참가 도중 온라인 연결 오류가 발생했습니다.\n오류 유형: ${err.type}\n\n*방 ID가 틀렸거나, 방장이 이미 나갔거나, 네트워크 방화벽이 차단 중일 수 있습니다.`);
+    });
+
+    // Auto-reconnect to signaling server if disconnected
+    this.peer.on("disconnected", () => {
+      this.logFeed("📡 중계 서버 연결이 일시 차단되었습니다. 재연결을 시도합니다...", "system");
+      this.peer.reconnect();
     });
   },
 
@@ -2001,6 +2035,9 @@ const MarbleGameModule = {
         conn.send({ type: "REJECT", reason: "정원 초과(4명)" });
         return;
       }
+
+      // Filter out duplicate connections from same peer
+      this.connectedClientsList = this.connectedClientsList.filter(c => c.peerId !== conn.peer);
 
       this.connectedClientsList.push({
         peerId: conn.peer,
@@ -2027,16 +2064,22 @@ const MarbleGameModule = {
       this.updateHostSlotsUI();
     }
     if (data.type === "GAME_START") {
-      this.players = data.players;
-      this.boardTiles = data.boardTiles; // Sync randomized board countries
-      this.diceCount = data.diceCount;
-      this.victoryCondition = data.victoryCondition;
-      this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
-      
-      this.generateBoardTilesInDOM();
-      this.renderDynamicBoardTiles();
-      this.launchGameBoard();
-      document.getElementById("modal-online-join").style.display = "none";
+      this.logFeed(`🎮 방장이 게임을 시작했습니다. 로딩 중...`, "system");
+      try {
+        this.players = data.players;
+        this.boardTiles = data.boardTiles; // Sync randomized board countries
+        this.diceCount = data.diceCount;
+        this.victoryCondition = data.victoryCondition;
+        this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
+        
+        this.generateBoardTilesInDOM();
+        this.renderDynamicBoardTiles();
+        this.launchGameBoard();
+        document.getElementById("modal-online-join").style.display = "none";
+      } catch (err) {
+        console.error("GAME_START Client Processing Crash:", err);
+        alert(`⚠️ 게임판을 로딩하는 중에 브라우저 오류가 발생했습니다:\n\n메시지: ${err.message}\n\n*브라우저의 캐시나 사양이 낮아 생기는 일시적인 오류일 수 있습니다.`);
+      }
     }
   },
 
@@ -2099,6 +2142,13 @@ const MarbleGameModule = {
       });
     });
 
+    // Synchronize host selections before broadcasting
+    const diceSelect = document.getElementById("online-dice-count");
+    this.diceCount = diceSelect ? parseInt(diceSelect.value) : 2;
+    
+    const victorySelect = document.getElementById("online-victory-rule");
+    this.victoryCondition = victorySelect ? victorySelect.value : "turn_limit";
+
     this.setupBoardWithRandomCountries();
     this.generateBoardTilesInDOM();
     this.renderDynamicBoardTiles();
@@ -2115,9 +2165,18 @@ const MarbleGameModule = {
   },
 
   broadcastToClients(data) {
+    let sentCount = 0;
     this.conns.forEach(c => {
-      if (c.open) c.send(data);
+      if (c.open) {
+        try {
+          c.send(data);
+          sentCount++;
+        } catch (e) {
+          console.error("Data transmit error:", e);
+        }
+      }
     });
+    this.logFeed(`📡 대원 ${sentCount}명에게 게임 상태 데이터를 전송했습니다.`, "system");
   },
 
   checkURLRoomParam() {
