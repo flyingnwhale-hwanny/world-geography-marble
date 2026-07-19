@@ -1953,7 +1953,7 @@ const MarbleGameModule = {
     this.peer = new Peer(rId, { debug: 1 });
 
     this.peer.on("open", (id) => {
-      const conn = this.peer.connect(roomId);
+      const conn = this.peer.connect(roomId, { serialization: "json" });
       this.conn = conn;
 
       conn.on("open", () => {
