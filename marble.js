@@ -1493,7 +1493,7 @@ const MarbleGameModule = {
         this.logFeed(`⌛ 퀴즈 제한 시간을 초과했습니다.`, "quiz-wrong");
         modal.style.display = "none";
         
-        if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+        if (this.gameMode === "online" && this.isLocalTurn()) {
           this.sendNetworkMessage({
             type: "SYNC_QUIZ_RESULT",
             tileIdx: tileIdx,
@@ -1638,7 +1638,7 @@ const MarbleGameModule = {
     const isCorrect = choiceIdx === quiz.ans;
     
     // Broadcast quiz result to remote players
-    if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+    if (this.gameMode === "online" && this.isLocalTurn()) {
       this.sendNetworkMessage({
         type: "SYNC_QUIZ_RESULT",
         tileIdx: this.activeQuiz.tileIdx,
@@ -1897,7 +1897,7 @@ const MarbleGameModule = {
       this.updatePlayerDashboard();
     }
     
-    if (this.gameMode === "online" && this.currentPlayerIdx === this.localPlayerIdx) {
+    if (this.gameMode === "online" && this.isLocalTurn()) {
       this.sendNetworkMessage({
         type: "SYNC_WARP",
         tileIdx: tileIdx
@@ -2421,7 +2421,7 @@ const MarbleGameModule = {
     // Host owns and triggers moves/actions for AI players
     if (this.isHost && !activePlayer.isHuman) return true;
     
-    return this.currentPlayerIdx === this.localPlayerIdx;
+    return activePlayer.id === this.localPlayerIdx;
   },
 
   sendNetworkMessage(data) {
