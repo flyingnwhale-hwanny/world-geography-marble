@@ -246,8 +246,10 @@
                 <button class="btn-secondary" id="btn-generate-room">방 만들기</button>
                 <div id="room-link-box" style="display:none;" class="glass-panel">
                   <p>아래 링크를 복사하여 친구들에게 공유하세요!</p>
-                  <input type="text" id="share-link-input" readonly>
-                  <button class="btn-small" id="btn-copy-link">📋 복사</button>
+                  <div style="display: flex; gap: 8px; width: 100%; align-items: center; margin-top: 4px;">
+                    <input type="text" id="share-link-input" readonly style="flex: 1; min-width: 0; background: #000; border: 1px solid var(--border-glass); padding: 8px; color: #00f0ff; font-family: monospace; font-size: 11px; border-radius: 4px;">
+                    <button class="btn-small" id="btn-copy-link" style="white-space: nowrap; padding: 8px 12px;">📋 복사</button>
+                  </div>
                   <div class="qr-code-wrapper" style="margin-top: 15px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
                     <p style="font-size: 11px; color: var(--text-muted); margin: 0;">또는 아래 QR 코드를 화면 공유하여 스캔하도록 하세요!</p>
                     <div id="room-qr-code" style="padding: 10px; background: white; border-radius: 8px; width: fit-content; display: inline-block;"></div>

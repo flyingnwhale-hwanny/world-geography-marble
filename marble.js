@@ -1995,9 +1995,28 @@ const MarbleGameModule = {
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get("room");
     if (roomParam) {
-      document.getElementById("setup-tab-online").click();
-      document.getElementById("online-join-room-id").value = roomParam;
-      document.getElementById("btn-choice-join").click();
+      // 1. Move to marble view immediately
+      if (typeof switchView === "function") {
+        switchView("marble");
+      }
+      
+      // 2. Open online setup tab
+      const tabOnline = document.getElementById("setup-tab-online");
+      if (tabOnline) tabOnline.click();
+      
+      // 3. Show join sub-panel
+      const btnChoiceJoin = document.getElementById("btn-choice-join");
+      if (btnChoiceJoin) btnChoiceJoin.click();
+      
+      // 4. Fill in room ID
+      const roomIdInput = document.getElementById("online-join-room-id");
+      if (roomIdInput) roomIdInput.value = roomParam;
+      
+      // 5. Auto-trigger connection search after a short stabilizer delay
+      setTimeout(() => {
+        const connectBtn = document.getElementById("btn-connect-join");
+        if (connectBtn) connectBtn.click();
+      }, 600);
     }
   }
 };
