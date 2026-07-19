@@ -2004,6 +2004,7 @@ const MarbleGameModule = {
       this.boardTiles = data.boardTiles; // Sync randomized board countries
       this.diceCount = data.diceCount;
       this.victoryCondition = data.victoryCondition;
+      this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
       
       this.generateBoardTilesInDOM();
       this.renderDynamicBoardTiles();
