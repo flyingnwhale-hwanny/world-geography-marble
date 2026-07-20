@@ -824,6 +824,17 @@ const MarbleGameModule = {
 
     const activePlayer = this.players[this.currentPlayerIdx];
     
+    // Automatically skip empty groups in online group mode on host
+    if (this.gameMode === "online" && this.isGroupMode && this.isHost) {
+      const isOccupied = (!this.isSpectatorMode && this.currentPlayerIdx === 0) || 
+                         this.connectedClientsList.some(c => !c.isSpectator && c.slotIdx === this.currentPlayerIdx);
+      if (!isOccupied) {
+        this.logFeed(`👥 [${activePlayer.name}] 모둠은 참여 대원이 없어 차례를 건너뜁니다.`, "system");
+        this.passTurn();
+        return;
+      }
+    }
+    
     if (activePlayer.isBankrupt) {
       if (this.isLocalTurn() || this.isHost) {
         this.passTurn();
@@ -916,12 +927,21 @@ const MarbleGameModule = {
     // Animate for 1.2s
     setTimeout(() => {
       cube1.classList.remove("spinning");
-      cube2.classList.remove("spinning");
+      if (cube2) cube2.classList.remove("spinning");
       
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = (this.diceCount === 2) ? Math.floor(Math.random() * 6) + 1 : 0;
+      let d1, d2;
+      let isOverridden = false;
+      if (this.incomingSyncRoll) {
+        d1 = this.incomingSyncRoll.d1;
+        d2 = this.incomingSyncRoll.d2;
+        this.incomingSyncRoll = null;
+        isOverridden = true;
+      } else {
+        d1 = Math.floor(Math.random() * 6) + 1;
+        d2 = (this.diceCount === 2) ? Math.floor(Math.random() * 6) + 1 : 0;
+      }
       
-      if (this.gameMode === "online") {
+      if (this.gameMode === "online" && !isOverridden) {
         this.sendNetworkMessage({
           type: "SYNC_ROLL",
           d1: d1,
@@ -2706,7 +2726,11 @@ const MarbleGameModule = {
     }
     
     if (data.type === "SYNC_ROLL") {
-      this.triggerRemoteDiceRoll(data.d1, data.d2);
+      const rollBtn = document.getElementById("btn-roll-dice");
+      const canRoll = rollBtn && !rollBtn.disabled;
+      if (this.isRolling || canRoll) {
+        this.triggerRemoteDiceRoll(data.d1, data.d2);
+      }
     }
     
     if (data.type === "SYNC_BUY") {
@@ -2914,7 +2938,11 @@ const MarbleGameModule = {
   },
 
   triggerRemoteDiceRoll(d1, d2) {
-    if (this.isRolling) return;
+    if (this.isRolling) {
+      // Store the incoming roll to override our local roll when our animation finishes (multi-tablet concurrency sync)
+      this.incomingSyncRoll = { d1, d2 };
+      return;
+    }
     this.isRolling = true;
     
     const rollBtn = document.getElementById("btn-roll-dice");
