@@ -3089,6 +3089,75 @@ const SorterGameModule = {
         this.verifySortAnswer(continentData, targetContinent);
       };
     });
+
+    // Touch Drag-and-Drop simulation for mobile and tablet devices
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isTouching = false;
+
+    dragCard.addEventListener("touchstart", (e) => {
+      if (!this.gameActive) return;
+      isTouching = true;
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      dragCard.style.animation = "none";
+      dragCard.style.transition = "none";
+      dragCard.style.opacity = "0.8";
+      dragCard.style.zIndex = "1000";
+    }, { passive: true });
+
+    dragCard.addEventListener("touchmove", (e) => {
+      if (!isTouching || !this.gameActive) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      
+      dragCard.style.transform = `translate(${dx}px, ${dy}px) scale(1.02)`;
+
+      // Visual feedback on hovered portals underneath touch point
+      dragCard.style.pointerEvents = "none";
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      dragCard.style.pointerEvents = "auto";
+      
+      const hoveredPortal = targetEl ? targetEl.closest(".continent-portal") : null;
+      portals.forEach(p => p.classList.remove("drag-hover"));
+      if (hoveredPortal) {
+        hoveredPortal.classList.add("drag-hover");
+      }
+    }, { passive: true });
+
+    dragCard.addEventListener("touchend", (e) => {
+      if (!isTouching || !this.gameActive) return;
+      isTouching = false;
+      const touch = e.changedTouches[0];
+
+      // Detect drop target portal
+      dragCard.style.pointerEvents = "none";
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      dragCard.style.pointerEvents = "auto";
+
+      const portal = targetEl ? targetEl.closest(".continent-portal") : null;
+      portals.forEach(p => p.classList.remove("drag-hover"));
+
+      // Reset card position and animation
+      dragCard.style.opacity = "1";
+      dragCard.style.zIndex = "";
+      dragCard.style.transition = "transform 0.2s ease";
+      dragCard.style.transform = "none";
+      
+      setTimeout(() => {
+        if (!isTouching) {
+          dragCard.style.animation = "floatCard 2.5s infinite alternate ease-in-out";
+          dragCard.style.transition = "none";
+        }
+      }, 200);
+
+      if (portal) {
+        const targetContinent = portal.getAttribute("data-continent");
+        this.verifySortAnswer(this.activeCountry.continent, targetContinent);
+      }
+    });
   },
 
   startGameLoop() {
@@ -3142,6 +3211,11 @@ const SorterGameModule = {
 
   verifySortAnswer(correctContinent, droppedContinent) {
     if (!this.gameActive) return;
+    
+    // Fallback if dataTransfer failed or got lost (common in mobile/tablet HTML5 D&D translation)
+    if (!correctContinent && this.activeCountry) {
+      correctContinent = this.activeCountry.continent;
+    }
     
     const dragCard = document.getElementById("sorter-drag-card");
     
