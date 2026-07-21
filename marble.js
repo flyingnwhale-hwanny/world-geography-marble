@@ -1247,7 +1247,7 @@ const MarbleGameModule = {
         if (activePlayer.hasFTA) {
           activePlayer.hasFTA = false;
           this.logFeed(`🛡️ FTA 협정 면제 카드를 발급받아 통행료 지불을 1회 패스합니다!`, "system");
-          if (this.isLocalTurn()) {
+          if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
             setTimeout(() => this.passTurn(), 1500);
           }
         } else {
@@ -2382,8 +2382,14 @@ const MarbleGameModule = {
 
     this.peer.on("error", (err) => {
       console.error("PeerJS Error:", err);
-      this.logFeed(`❌ 연결 오류: ${err.type}`, "system");
-      alert(`방 참가 도중 온라인 연결 오류가 발생했습니다.\n오류 유형: ${err.type}\n\n*방 ID가 틀렸거나, 방장이 이미 나갔거나, 네트워크 방화벽이 차단 중일 수 있습니다.`);
+      this.logFeed(`⚠️ 네트워크 상태 알림: ${err.type}`, "system");
+      if (!this.gameActive) {
+        alert(`방 참가 도중 온라인 연결 오류가 발생했습니다.\n오류 유형: ${err.type}\n\n*방 ID가 틀렸거나, 방장이 이미 나갔거나, 네트워크 방화벽이 차단 중일 수 있습니다.`);
+      } else {
+        if (this.peer && !this.peer.destroyed) {
+          this.peer.reconnect();
+        }
+      }
     });
 
     // Auto-reconnect to signaling server if disconnected
