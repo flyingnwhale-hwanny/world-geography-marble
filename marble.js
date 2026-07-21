@@ -1041,7 +1041,18 @@ const MarbleGameModule = {
         document.getElementById("dice-double-message").style.display = "none";
         this.logFeed(`🕳️ 연속 3회 더블로 과속 위반! 버뮤다 지대로 강제 구속 수송됩니다.`, "system");
         this.updatePawnPositionsOnBoard();
-        setTimeout(() => this.passTurn(), 1500);
+        this.updatePlayerDashboard();
+        
+        if (this.gameMode === "online" && this.isHost) {
+          this.sendNetworkMessage({
+            type: "SYNC_BERMUDA_WAIT",
+            jailTurns: 2
+          });
+        }
+        
+        if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
+          setTimeout(() => this.passTurn(), 1500);
+        }
         return;
       }
     } else {
@@ -2860,7 +2871,8 @@ const MarbleGameModule = {
         this.logFeed(`❌ 오답! ${activePlayer.name} 대원이 퀴즈 해결에 실패했습니다.`, "quiz-wrong");
       }
       
-      setTimeout(() => {
+      if (this.quizResultTimeout) clearTimeout(this.quizResultTimeout);
+      this.quizResultTimeout = setTimeout(() => {
         document.getElementById("modal-quiz").style.display = "none";
         this.updatePlayerDashboard();
         this.renderDynamicBoardTiles();
@@ -2957,6 +2969,7 @@ const MarbleGameModule = {
     }
 
     if (data.type === "SYNC_PASS_TURN") {
+      if (this.quizResultTimeout) clearTimeout(this.quizResultTimeout);
       this.doubleStreak = data.doubleStreak || 0;
       
       const prevIdx = this.currentPlayerIdx;
