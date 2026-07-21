@@ -1758,8 +1758,9 @@ const MarbleGameModule = {
     if (this.gameMode === "online") {
       this.sendNetworkMessage({
         type: "SYNC_QUIZ_RESULT",
-        tileIdx: this.activeQuiz.tileIdx,
+        tileIdx: this.activeQuiz ? this.activeQuiz.tileIdx : 0,
         isCorrect: isCorrect,
+        ans: quiz ? quiz.ans : 0,
         isUpgrade: !!this.activeQuizUpgrade,
         nextLvl: this.activeQuizUpgrade ? this.activeQuizUpgrade.nextLvl : 0
       });
@@ -2827,26 +2828,30 @@ const MarbleGameModule = {
         buttons.forEach(b => b.disabled = true);
       }
       
+      const ansIdx = data.ans !== undefined ? data.ans : (this.activeQuiz && this.activeQuiz.data ? this.activeQuiz.data.ans : 0);
+      
       if (data.isCorrect) {
         SoundEffects.playCorrect();
-        if (data.isUpgrade) {
-          tile.buildLevel = data.nextLvl;
-        } else {
-          this.tileOwners[data.tileIdx] = activePlayer.id;
-          tile.buildLevel = 0;
+        if (tile) {
+          if (data.isUpgrade) {
+            tile.buildLevel = data.nextLvl;
+          } else {
+            this.tileOwners[data.tileIdx] = activePlayer.id;
+            tile.buildLevel = 0;
+          }
         }
         
-        if (this.activeQuiz && buttons[this.activeQuiz.data.ans]) {
-          buttons[this.activeQuiz.data.ans].classList.add("correct-choice");
+        if (buttons[ansIdx]) {
+          buttons[ansIdx].classList.add("correct-choice");
         }
         
-        this.logFeed(`🎯 정답! ${activePlayer.name} 대원이 지리 퀴즈를 맞추어 [${tile.name}]을(를) 무료 획득/증축했습니다!`, "quiz-correct");
+        this.logFeed(`🎯 정답! ${activePlayer.name} 대원이 지리 퀴즈를 맞추어 [${tile ? tile.name : '영토'}]을(를) 무료 획득/증축했습니다!`, "quiz-correct");
       } else {
         SoundEffects.playWrong();
         this.activeQuizUpgrade = null;
         
-        if (this.activeQuiz && buttons[this.activeQuiz.data.ans]) {
-          buttons[this.activeQuiz.data.ans].classList.add("correct-choice");
+        if (buttons[ansIdx]) {
+          buttons[ansIdx].classList.add("correct-choice");
         }
         
         this.logFeed(`❌ 오답! ${activePlayer.name} 대원이 퀴즈 해결에 실패했습니다.`, "quiz-wrong");
