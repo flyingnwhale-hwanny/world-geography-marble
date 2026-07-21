@@ -2297,6 +2297,24 @@ const MarbleGameModule = {
         
         // Query lobby info to populate team/slot details dynamically
         this.conn.send({ type: "QUERY_LOBBY" });
+
+        // Auto-submit join request if click happened during connection setup
+        if (this.pendingJoinData) {
+          this.conn.send({
+            type: "JOIN_SUBMIT",
+            nickname: this.pendingJoinData.nickname,
+            teamIdx: this.pendingJoinData.teamIdx
+          });
+          this.logFeed(`📡 탑승 신청 자동 전송: ${this.pendingJoinData.nickname} (좌석 ${this.pendingJoinData.teamIdx + 1})`, "system");
+          this.pendingJoinData = null;
+          
+          const btnSubmitJoin = document.getElementById("btn-submit-join");
+          if (btnSubmitJoin) {
+            btnSubmitJoin.disabled = false;
+            btnSubmitJoin.innerText = "탐험대 탑승";
+          }
+          document.getElementById("modal-online-join").style.display = "none";
+        }
       });
 
       conn.on("data", (data) => this.handleClientNetworkData(data));
@@ -2468,12 +2486,24 @@ const MarbleGameModule = {
         this.groupNames = data.groupNames;
         this.tileOwners = {}; // Fix undefined tileOwners TypeError on client page load
         
+        if (data.connectedClients) {
+          this.connectedClientsList = data.connectedClients;
+        }
+
         // Identify local player index on client device
         this.gameMode = "online";
-        this.localPlayerIdx = 1; // Fallback
-        const myClientInfo = this.connectedClientsList.find(c => c.peerId === this.peer.id);
-        if (myClientInfo) {
-          this.localPlayerIdx = myClientInfo.slotIdx;
+        this.localPlayerIdx = -1; // Default to unassigned/spectator
+        
+        // 1st Priority: Try matching peerId from synchronized players array
+        const myPlayer = this.players.find(p => p.peerId === this.peer.id);
+        if (myPlayer) {
+          this.localPlayerIdx = myPlayer.id;
+        } else {
+          // 2nd Priority: Fallback to searching connectedClientsList (e.g. group mode or spectator)
+          const myClientInfo = this.connectedClientsList.find(c => c.peerId === this.peer.id);
+          if (myClientInfo) {
+            this.localPlayerIdx = myClientInfo.slotIdx;
+          }
         }
 
         this.generateBoardTilesInDOM();
@@ -2590,6 +2620,7 @@ const MarbleGameModule = {
         if (c.isSpectator) return;
         this.players.push({
           id: c.slotIdx,
+          peerId: c.peerId,
           name: c.nickname,
           color: colors[c.slotIdx % 8],
           avatar: avatars[c.slotIdx % 8],
@@ -2627,7 +2658,8 @@ const MarbleGameModule = {
       victoryCondition: this.victoryCondition,
       isGroupMode: this.isGroupMode || false,
       groupNames: this.groupNames || [],
-      isSpectatorMode: this.isSpectatorMode || false
+      isSpectatorMode: this.isSpectatorMode || false,
+      connectedClients: this.connectedClientsList
     });
 
     this.launchGameBoard();
