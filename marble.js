@@ -801,6 +801,7 @@ const MarbleGameModule = {
   },
 
   startTurnCycle() {
+    this.isRolling = false;
     if (!this.gameActive) return;
     
     // Save history snapshot on host
