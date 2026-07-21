@@ -866,6 +866,7 @@ const MarbleGameModule = {
           this.logFeed(`🌀 워프 활성화! 보드판에서 이동하고 싶은 타일을 직접 클릭하세요.`, "system");
         } else {
           rollBtn.disabled = false;
+          rollBtn.style.pointerEvents = "auto";
           rollBtn.innerText = "주사위 던지기 🎲";
           rollBtn.classList.add("active-turn");
         }
@@ -1343,6 +1344,7 @@ const MarbleGameModule = {
         this.sendNetworkMessage({
           type: "SYNC_QUIZ_START",
           tileIdx: tileIdx,
+          countryId: tile.id,
           qIdx: qIdx,
           isUpgrade: false,
           nextLvl: 0
@@ -1498,6 +1500,7 @@ const MarbleGameModule = {
         this.sendNetworkMessage({
           type: "SYNC_QUIZ_START",
           tileIdx: tileIdx,
+          countryId: tile.id,
           qIdx: qIdx,
           isUpgrade: true,
           nextLvl: nextLvl
@@ -2816,7 +2819,7 @@ const MarbleGameModule = {
       } else {
         this.activeQuizUpgrade = null;
       }
-      this.triggerRemoteQuizChallenge(data.tileIdx, data.qIdx);
+      this.triggerRemoteQuizChallenge(data.tileIdx, data.qIdx, data.countryId);
     }
     
     if (data.type === "SYNC_QUIZ_RESULT") {
@@ -3029,10 +3032,11 @@ const MarbleGameModule = {
     }, 1200);
   },
 
-  triggerRemoteQuizChallenge(tileIdx, qIdx) {
+  triggerRemoteQuizChallenge(tileIdx, qIdx, countryId) {
     this.pendingQuizDecision = true;
     const tile = this.boardTiles[tileIdx];
-    const countryData = this.getCountryDataById(tile.id);
+    const targetId = countryId || (tile ? tile.id : null);
+    const countryData = this.getCountryDataById(targetId);
     if (!countryData) return;
     
     document.getElementById("modal-purchase-choice").style.display = "none";
