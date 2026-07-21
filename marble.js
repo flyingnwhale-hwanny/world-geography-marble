@@ -803,6 +803,8 @@ const MarbleGameModule = {
 
   startTurnCycle() {
     this.isRolling = false;
+    this.pendingQuizDecision = false;
+    this.pendingTileDecisionIdx = null;
     if (!this.gameActive) return;
     
     // Save history snapshot on host
@@ -2073,6 +2075,8 @@ const MarbleGameModule = {
   },
 
   passTurn() {
+    this.pendingQuizDecision = false;
+    this.pendingTileDecisionIdx = null;
     if (!this.gameActive) return;
     
     // If not double, pass turn. If double and doubleStreak > 0, do not pass!
@@ -2391,10 +2395,11 @@ const MarbleGameModule = {
       
       // 2. Decision lock protection (first click wins)
       if (data.type === "SYNC_BUY" || data.type === "SYNC_CANCEL" || data.type === "SYNC_UPGRADE" || data.type === "SYNC_QUIZ_START") {
-        // Enforce basic check but relax strict drops to avoid animation latency issues
         if (data.type === "SYNC_QUIZ_START") {
-          if (this.pendingQuizDecision) {
-            return; // Ignore duplicate start clicks
+          const quizModal = document.getElementById("modal-quiz");
+          const isQuizModalOpen = quizModal && quizModal.style.display === "flex";
+          if (this.pendingQuizDecision && isQuizModalOpen) {
+            return; // Ignore duplicate start clicks only if quiz modal is currently visible
           }
           this.pendingQuizDecision = true;
         }
@@ -3062,6 +3067,8 @@ const MarbleGameModule = {
     
     document.getElementById("modal-purchase-choice").style.display = "none";
     document.getElementById("modal-upgrade-choice").style.display = "none";
+    document.getElementById("modal-trade").style.display = "none";
+    document.getElementById("modal-chance").style.display = "none";
     
     const quiz = countryData.quizzes[qIdx];
     this.activeQuiz = {
