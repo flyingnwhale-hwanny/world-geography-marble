@@ -2365,8 +2365,10 @@ const MarbleGameModule = {
       
       // 2. Decision lock protection (first click wins)
       if (data.type === "SYNC_BUY" || data.type === "SYNC_CANCEL" || data.type === "SYNC_UPGRADE" || data.type === "SYNC_QUIZ_START") {
-        if (this.pendingTileDecisionIdx !== data.tileIdx) {
-          return; // Ignore duplicate clicks from other group members
+        const activePlayer = this.players[this.currentPlayerIdx];
+        const isMatch = (this.pendingTileDecisionIdx === data.tileIdx) || (activePlayer && activePlayer.position === data.tileIdx);
+        if (!isMatch) {
+          return; // Ignore invalid / outdated clicks
         }
         this.pendingTileDecisionIdx = null; // Lock!
         if (data.type === "SYNC_QUIZ_START") {
