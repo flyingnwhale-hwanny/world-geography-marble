@@ -1194,6 +1194,7 @@ const MarbleGameModule = {
     
     if (tile.type === "bermuda") {
       SoundEffects.playWrong();
+      this.doubleStreak = 0;
       activePlayer.isJailed = true;
       activePlayer.jailTurns = 2;
       this.logFeed(`🕳️ 버뮤다 전파 장애 지대에 포획되었습니다! 통신 복구 대기 2회 돌입.`, "system");
@@ -1203,7 +1204,7 @@ const MarbleGameModule = {
         activePlayer.hasExemption = false;
         this.logFeed(`🛡️ 외교관 비자 카드를 사용해 통신 마비를 자동 무력화합니다!`, "system");
       }
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1500);
       }
       return;
@@ -2078,6 +2079,11 @@ const MarbleGameModule = {
     this.pendingQuizDecision = false;
     this.pendingTileDecisionIdx = null;
     if (!this.gameActive) return;
+    
+    const activePlayer = this.players[this.currentPlayerIdx];
+    if (activePlayer && activePlayer.isJailed) {
+      this.doubleStreak = 0;
+    }
     
     // If not double, pass turn. If double and doubleStreak > 0, do not pass!
     if (this.doubleStreak > 0) {
