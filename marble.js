@@ -1892,9 +1892,8 @@ const MarbleGameModule = {
     modal.style.display = "flex";
 
     const payBtn = document.getElementById("btn-pay-trade");
-    const resolvePayment = () => {
+    payBtn.onclick = () => {
       modal.style.display = "none";
-      payBtn.removeEventListener("click", resolvePayment);
       
       if (this.gameMode === "online") {
         this.sendNetworkMessage({
@@ -1924,10 +1923,11 @@ const MarbleGameModule = {
       }
 
       this.updatePlayerDashboard();
-      setTimeout(() => this.passTurn(), 1200);
+      this.renderDynamicBoardTiles();
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
     };
-
-    payBtn.addEventListener("click", resolvePayment);
 
     if (!visitor.isHuman) {
       setTimeout(() => payBtn.click(), 1800);
