@@ -2366,15 +2366,14 @@ const MarbleGameModule = {
       
       // 2. Decision lock protection (first click wins)
       if (data.type === "SYNC_BUY" || data.type === "SYNC_CANCEL" || data.type === "SYNC_UPGRADE" || data.type === "SYNC_QUIZ_START") {
-        const activePlayer = this.players[this.currentPlayerIdx];
-        const isMatch = (this.pendingTileDecisionIdx === data.tileIdx) || (activePlayer && activePlayer.position === data.tileIdx);
-        if (!isMatch) {
-          return; // Ignore invalid / outdated clicks
-        }
-        this.pendingTileDecisionIdx = null; // Lock!
+        // Enforce basic check but relax strict drops to avoid animation latency issues
         if (data.type === "SYNC_QUIZ_START") {
+          if (this.pendingQuizDecision) {
+            return; // Ignore duplicate start clicks
+          }
           this.pendingQuizDecision = true;
         }
+        this.pendingTileDecisionIdx = null; // Reset decision lock
       }
       
       // 3. Quiz answer lock protection
