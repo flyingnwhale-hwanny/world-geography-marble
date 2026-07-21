@@ -1186,7 +1186,7 @@ const MarbleGameModule = {
       SoundEffects.playSpecial();
       this.logFeed(`🌀 워프 비행 게이트 활성화! 다음 턴에 원하는 국가로 무제한 즉시 비행합니다!`, "system");
       activePlayer.isWarpPending = true;
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1500);
       }
       return;
