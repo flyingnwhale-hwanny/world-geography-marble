@@ -1033,8 +1033,12 @@ const MarbleGameModule = {
     // Double counts streak
     if (isDouble) {
       this.doubleStreak++;
-      document.getElementById("dice-double-message").style.display = "block";
-      this.logFeed(`🎲 더블! 한 번 더 던질 기회를 얻습니다. (연속 ${this.doubleStreak}회)`, "system");
+      const doubleMsgEl = document.getElementById("dice-double-message");
+      if (doubleMsgEl) {
+        doubleMsgEl.innerText = `🎲 더블 달성! (연속 ${this.doubleStreak}회) 현재 행동 완료 후 한 번 더 주사위를 굴립니다!`;
+        doubleMsgEl.style.display = "block";
+      }
+      this.logFeed(`🎲 [더블!] 주사위 눈이 일치하여 탐험 행동 완료 후 한 번 더 던질 기회를 얻습니다. (연속 ${this.doubleStreak}회)`, "system");
       
       if (this.doubleStreak >= 3) {
         this.doubleStreak = 0;
@@ -2081,7 +2085,7 @@ const MarbleGameModule = {
           players: this.players
         });
       } else if (this.gameMode === "local") {
-        this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
+        this.logFeed(`🎲 더블 효과 지속! ${this.players[this.currentPlayerIdx].name} 대원의 연속 주사위 주행 기회입니다!`, "system");
         this.startTurnCycle();
       }
       return;
