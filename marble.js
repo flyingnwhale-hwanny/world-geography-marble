@@ -1415,19 +1415,20 @@ const MarbleGameModule = {
       return;
     }
 
-    const activePlayer = this.players[this.currentPlayerIdx];
-
-    // Suppress upgrade popup on remote turns
-    if (this.gameMode === "online" && !this.isLocalTurn()) {
-      this.logFeed(`⏳ 상대방의 개척지 증축 선택 결정을 대기 중입니다...`, "normal");
-      return;
-    }
     const currentLvl = tile.buildLevel || 0;
 
     // Max level check
     if (currentLvl >= 3) {
       this.logFeed(`🏰 [${tile.name}]은(는) 이미 최고 단계(호텔)까지 개척 기지가 완공되었습니다!`, "normal");
-      setTimeout(() => this.passTurn(), 1200);
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
+        setTimeout(() => this.passTurn(), 1200);
+      }
+      return;
+    }
+
+    // Suppress upgrade popup on remote turns
+    if (this.gameMode === "online" && !this.isLocalTurn()) {
+      this.logFeed(`⏳ 상대방의 개척지 증축 선택 결정을 대기 중입니다...`, "normal");
       return;
     }
 
