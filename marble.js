@@ -2052,34 +2052,36 @@ const MarbleGameModule = {
     
     // If not double, pass turn. If double and doubleStreak > 0, do not pass!
     if (this.doubleStreak > 0) {
-      if (this.gameMode === "online" && this.isLocalTurn()) {
+      if (this.gameMode === "online" && this.isHost) {
         this.sendNetworkMessage({
           type: "SYNC_PASS_TURN",
           nextPlayerIdx: this.currentPlayerIdx,
           doubleStreak: this.doubleStreak
         });
+      } else if (this.gameMode === "local") {
+        this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
+        this.startTurnCycle();
       }
-      this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
-      this.startTurnCycle();
       return;
     }
 
     const nextIdx = (this.currentPlayerIdx + 1) % this.players.length;
     
-    if (this.gameMode === "online" && this.isLocalTurn()) {
-      this.sendNetworkMessage({
-        type: "SYNC_PASS_TURN",
-        nextPlayerIdx: nextIdx,
-        doubleStreak: 0
-      });
+    if (this.gameMode === "online") {
+      if (this.isHost) {
+        this.sendNetworkMessage({
+          type: "SYNC_PASS_TURN",
+          nextPlayerIdx: nextIdx,
+          doubleStreak: 0
+        });
+      }
+    } else {
+      this.currentPlayerIdx = nextIdx;
+      if (this.currentPlayerIdx === 0) {
+        this.turnNumber++;
+      }
+      setTimeout(() => this.startTurnCycle(), 800);
     }
-
-    this.currentPlayerIdx = nextIdx;
-    if (this.currentPlayerIdx === 0) {
-      this.turnNumber++;
-    }
-
-    setTimeout(() => this.startTurnCycle(), 800);
   },
 
   // 2.11. Victory Conditions checks
