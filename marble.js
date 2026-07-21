@@ -1540,6 +1540,7 @@ const MarbleGameModule = {
 
   // 2.6. Quiz Challenger
   triggerQuizChallenge(tileIdx) {
+    this.pendingQuizDecision = true;
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) {
@@ -2373,12 +2374,9 @@ const MarbleGameModule = {
         }
       }
       
-      // 3. Quiz answer lock protection (first click wins)
+      // 3. Quiz answer lock protection
       if (data.type === "SYNC_QUIZ_RESULT") {
-        if (!this.pendingQuizDecision) {
-          return; // Ignore late answers
-        }
-        this.pendingQuizDecision = false; // Lock!
+        this.pendingQuizDecision = false;
       }
       
       this.broadcastToClients(data);
@@ -3012,6 +3010,7 @@ const MarbleGameModule = {
   },
 
   triggerRemoteQuizChallenge(tileIdx, qIdx) {
+    this.pendingQuizDecision = true;
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) return;
