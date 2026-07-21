@@ -2010,3 +2010,16 @@ body {
     box-shadow: 0 0 20px var(--active-player-color, #38bdf8);
   }
 }
+
+.warp-active-highlight {
+  cursor: pointer !important;
+  animation: warpPulse 1.2s infinite alternate !important;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.8), inset 0 0 15px rgba(236, 72, 153, 0.4) !important;
+  border-color: #ec4899 !important;
+  z-index: 10 !important;
+}
+
+@keyframes warpPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.03); filter: brightness(1.35); }
+}

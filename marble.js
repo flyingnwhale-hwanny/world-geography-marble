@@ -683,7 +683,8 @@ const MarbleGameModule = {
       
       el.addEventListener("click", () => {
         const activePlayer = this.players[this.currentPlayerIdx];
-        if (this.isWarpPending && activePlayer && activePlayer.isHuman && this.isLocalTurn()) {
+        const canWarp = this.isWarpPending || (activePlayer && activePlayer.isWarpPending);
+        if (canWarp && activePlayer && activePlayer.isHuman && this.isLocalTurn()) {
           this.executeWarpTo(index);
         }
       });
@@ -864,7 +865,9 @@ const MarbleGameModule = {
           rollBtn.innerText = "이동할 타일 클릭 🌀";
           rollBtn.classList.remove("active-turn");
           this.logFeed(`🌀 워프 활성화! 보드판에서 이동하고 싶은 타일을 직접 클릭하세요.`, "system");
+          document.querySelectorAll(".board-tile").forEach(t => t.classList.add("warp-active-highlight"));
         } else {
+          document.querySelectorAll(".board-tile").forEach(t => t.classList.remove("warp-active-highlight"));
           rollBtn.disabled = false;
           rollBtn.style.pointerEvents = "auto";
           rollBtn.innerText = "주사위 던지기 🎲";
@@ -2021,6 +2024,7 @@ const MarbleGameModule = {
     
     this.isWarpPending = false;
     activePlayer.isWarpPending = false;
+    document.querySelectorAll(".board-tile").forEach(t => t.classList.remove("warp-active-highlight"));
     
     this.logFeed(`🛫 직항 비행 개시! 즉시 [ ${this.boardTiles[tileIdx].name} ] 타일로 워프 이동합니다.`, "system");
     activePlayer.position = tileIdx;
