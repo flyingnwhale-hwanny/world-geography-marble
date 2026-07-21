@@ -2058,7 +2058,8 @@ const MarbleGameModule = {
         this.sendNetworkMessage({
           type: "SYNC_PASS_TURN",
           nextPlayerIdx: this.currentPlayerIdx,
-          doubleStreak: this.doubleStreak
+          doubleStreak: this.doubleStreak,
+          players: this.players
         });
       } else if (this.gameMode === "local") {
         this.logFeed(`🎲 더블 효과! ${this.players[this.currentPlayerIdx].name} 대원의 연속 롤 턴입니다.`, "system");
@@ -2074,7 +2075,8 @@ const MarbleGameModule = {
         this.sendNetworkMessage({
           type: "SYNC_PASS_TURN",
           nextPlayerIdx: nextIdx,
-          doubleStreak: 0
+          doubleStreak: 0,
+          players: this.players
         });
       }
     } else {
@@ -2954,6 +2956,17 @@ const MarbleGameModule = {
       
       if (prevIdx !== this.currentPlayerIdx && this.currentPlayerIdx === 0) {
         this.turnNumber++;
+      }
+      
+      if (data.players) {
+        data.players.forEach((p, idx) => {
+          if (this.players[idx]) {
+            const savedPeerId = this.players[idx].peerId;
+            this.players[idx] = { ...p, peerId: savedPeerId };
+          } else {
+            this.players[idx] = p;
+          }
+        });
       }
       
       if (this.doubleStreak > 0) {
