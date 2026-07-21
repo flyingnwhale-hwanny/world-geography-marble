@@ -2784,7 +2784,7 @@ const MarbleGameModule = {
       document.getElementById("modal-purchase-choice").style.display = "none";
       document.getElementById("modal-upgrade-choice").style.display = "none";
       
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
     }
@@ -2796,7 +2796,7 @@ const MarbleGameModule = {
       document.getElementById("modal-purchase-choice").style.display = "none";
       document.getElementById("modal-upgrade-choice").style.display = "none";
       
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
     }
@@ -2852,7 +2852,7 @@ const MarbleGameModule = {
         document.getElementById("modal-quiz").style.display = "none";
         this.updatePlayerDashboard();
         this.renderDynamicBoardTiles();
-        if (this.isLocalTurn()) {
+        if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
           this.passTurn();
         }
       }, data.isCorrect ? 1200 : 2000);
@@ -2873,7 +2873,7 @@ const MarbleGameModule = {
       document.getElementById("modal-purchase-choice").style.display = "none";
       document.getElementById("modal-upgrade-choice").style.display = "none";
       
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
     }
@@ -2922,7 +2922,7 @@ const MarbleGameModule = {
       
       document.getElementById("modal-trade").style.display = "none";
       
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
     }
@@ -2939,7 +2939,7 @@ const MarbleGameModule = {
     if (data.type === "SYNC_BERMUDA_WAIT") {
       this.logFeed(`🕳️ 탈출에 실패했습니다! (남은 대기: ${activePlayer.jailTurns}턴)`, "system");
       
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
     }
