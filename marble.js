@@ -547,6 +547,18 @@ const MarbleGameModule = {
     }
 
     document.getElementById("btn-start-online").addEventListener("click", () => this.startOnlineGameBroadcast());
+
+    // GameOver Back to Main Lobby
+    const gameoverExitBtn = document.getElementById("btn-gameover-exit");
+    if (gameoverExitBtn) {
+      gameoverExitBtn.addEventListener("click", () => {
+        document.getElementById("modal-gameover").style.display = "none";
+        this.resetToSetup();
+        if (typeof switchView === "function") {
+          switchView("lobby");
+        }
+      });
+    }
   },
 
   renderLocalInputs(count) {
