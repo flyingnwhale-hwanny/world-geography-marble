@@ -1229,7 +1229,7 @@ const MarbleGameModule = {
       activePlayer.money += 150;
       this.logFeed(`🎉 세계 문화 축제 참가 보조금 150M 획득 완료!`, "system");
       this.updatePlayerDashboard();
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         setTimeout(() => this.passTurn(), 1200);
       }
       return;
@@ -1423,7 +1423,7 @@ const MarbleGameModule = {
     const tile = this.boardTiles[tileIdx];
     const countryData = this.getCountryDataById(tile.id);
     if (!countryData) {
-      if (this.isLocalTurn()) {
+      if (this.gameMode === "local" ? this.isLocalTurn() : this.isHost) {
         this.passTurn();
       }
       return;
@@ -1569,10 +1569,12 @@ const MarbleGameModule = {
 
     if (!activePlayer.isHuman) {
       setTimeout(() => {
-        if (activePlayer.money >= upgradeCost && Math.random() < 0.6) {
+        if (!buyBtn.disabled && Math.random() < 0.6) {
           buyBtn.click();
-        } else {
+        } else if (Math.random() < 0.5) {
           quizBtn.click();
+        } else {
+          cancelBtn.click();
         }
       }, 1800);
     }
