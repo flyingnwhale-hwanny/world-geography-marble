@@ -359,6 +359,7 @@ const MarbleGameModule = {
     this.gameMode = "local";
     this.localPlayerIdx = 0;
     this.pendingJoinData = null;
+    this.hasJoinedLobby = false;
     this.isGroupMode = false;
     this.groupNames = [];
     this.isSpectatorMode = false;
@@ -493,6 +494,7 @@ const MarbleGameModule = {
         const slotIdx = parseInt(document.getElementById("online-join-slot").value);
         
         if (this.conn && this.conn.open) {
+          this.hasJoinedLobby = true;
           this.conn.send({
             type: "JOIN_SUBMIT",
             nickname: nickname,
@@ -2325,6 +2327,7 @@ const MarbleGameModule = {
   },
 
   initClientPeer(roomId) {
+    this.hasJoinedLobby = false;
     const rId = "geo-client-" + Math.random().toString(36).substr(2, 6);
     this.peer = new Peer(rId, { debug: 1 });
 
@@ -2352,6 +2355,7 @@ const MarbleGameModule = {
 
         // Auto-submit join request if click happened during connection setup
         if (this.pendingJoinData) {
+          this.hasJoinedLobby = true;
           this.conn.send({
             type: "JOIN_SUBMIT",
             nickname: this.pendingJoinData.nickname,
@@ -2495,6 +2499,9 @@ const MarbleGameModule = {
       this.groupNames = data.groupNames;
       this.isSpectatorMode = data.isSpectatorMode;
       this.updateHostSlotsUI();
+      if (this.hasJoinedLobby) {
+        document.getElementById("modal-online-join").style.display = "none";
+      }
     }
     if (data.type === "LOBBY_INFO") {
       this.isGroupMode = data.isGroupMode;
@@ -2530,7 +2537,9 @@ const MarbleGameModule = {
         }
       }
       
-      document.getElementById("modal-online-join").style.display = "flex";
+      if (!this.hasJoinedLobby) {
+        document.getElementById("modal-online-join").style.display = "flex";
+      }
     }
     if (data.type === "GAME_START") {
       this.logFeed(`🎮 방장이 게임을 시작했습니다. 로딩 중...`, "system");
